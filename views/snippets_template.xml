@@ -61,7 +61,7 @@
     </template>
 
     <template id="payment" inherit_id="website_sale.payment" name="Klaviyo, payment tracking" priority="220">
-        <xpath expr="//div[@id='wrap']" position="inside">
+        <xpath expr="//div[@id='payment_method']" position="before">
             <t t-if="website and website.klaviyo_public_key and not editable">
                 <script>
                     klaviyo.push(["track", "Started Checkout", {
