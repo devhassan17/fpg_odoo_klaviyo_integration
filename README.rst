@@ -31,7 +31,7 @@ Integration components
 
 Module it depends on:
 
-* Odoo - Klaviyo Private API Keys `<https://apps.odoo.com/apps/modules/18.0/fpg_odoo_klaviyo_key>`__.
+* Odoo - Klaviyo Private API Keys `<https://apps.odoo.com/apps/modules/19.0/fpg_odoo_klaviyo_key>`__.
 
 Configuration
 -------
@@ -43,7 +43,7 @@ Configuration
 
 2. Setup the private API key to track the Place Order action. The access level should include the Events with Read/Write Access:
 
-  * Follow the steps in Odoo - Klaviyo Private API Keys `<https://apps.odoo.com/apps/modules/18.0/fpg_odoo_klaviyo_key>`__.
+  * Follow the steps in Odoo - Klaviyo Private API Keys `<https://apps.odoo.com/apps/modules/19.0/fpg_odoo_klaviyo_key>`__.
 
 Check the operations:
 -------

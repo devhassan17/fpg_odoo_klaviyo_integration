@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from werkzeug import urls
+from urllib.parse import urljoin
 
 from odoo import models
 
@@ -28,4 +28,4 @@ class ProductTemplate(models.Model):
         website_base_url = self.env.company.get_base_url()
         if website_base_url in self.website_url:
             return self.website_url
-        return urls.url_join(website_base_url, self.website_url)
+        return urljoin(website_base_url, self.website_url)
