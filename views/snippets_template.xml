@@ -32,23 +32,7 @@
         </xpath>
     </template>
 
-    <template id="products_add_to_cart" inherit_id="website_sale.products_add_to_cart" name="Klaviyo, shop-products tracking" priority="220">
-        <xpath expr="//t/a" position="attributes">
-            <t t-if="website and website.klaviyo_public_key and not editable">
-                <attribute name="t-attf-onclick" separator=" " add="
-                    klaviyo.push(['track', 'Added to Cart', {
-                        'AddedItemProductName': '#{product.name}',
-                        'AddedItemProductID': #{product.id},
-                        'AddedItemSKU': '#{product.default_code}',
-                        'AddedItemPrice': #{product.list_price},
-                        'AddedItemURL': '#{product._get_item_url()}',
-                        'AddedItemImageURL': '#{product.website_meta_og_img}',
-                        'AddedItemQuantity': 1
-                    }]);
-                "/>
-            </t>
-        </xpath>
-    </template>
+
 
     <template id="product" inherit_id="website_sale.product" name="Klaviyo, product tracking" priority="220">
         <xpath expr="//div[@id='wrap']" position="before">
@@ -93,7 +77,7 @@
     </template>
 
     <template id="payment" inherit_id="website_sale.payment" name="Klaviyo, payment tracking" priority="220">
-        <xpath expr="//t[@t-set='oe_structure']" position="before">
+        <xpath expr="//div[@id='wrap']" position="inside">
             <t t-if="website and website.klaviyo_public_key and not editable">
                 <script>
                     klaviyo.push(["track", "Started Checkout", {
