@@ -63,7 +63,8 @@
                 <filter string="Sent" name="sent" domain="[('state','=','sent')]"/>
                 <filter string="Cancelled" name="cancelled" domain="[('state','=','waiting')]"/>
                 
-                <group expand="1" string="Group By">
+                <separator string="Group By"/>
+                <group>
                     <filter name="filter_to_state" string="Status" domain="[]" context="{'group_by': 'state'}"/>
                 </group>
             </search>
