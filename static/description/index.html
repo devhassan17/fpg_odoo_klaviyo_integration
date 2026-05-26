@@ -1,0 +1,224 @@
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=yes">
+    <meta name="description" content="Odoo eCommerce integration with Klaviyo.">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+        h1 {
+            font-size: 18px;
+        }
+        h2 {
+            font-size: 16px;
+        }
+        h1, h2, .fpg-body {
+            font-family: "Roboto";
+        }
+        img {
+            max-width: 1024px;
+        }
+        .fpg-container {
+            color:#272727;
+        }
+        .fpg-section-caption, .fpg-section-text {
+            font-weight: 600;
+        }
+        .fpg-section-caption {
+            font-size: 18px;
+        }
+        .fpg-section-text {
+            font-size: 16px;
+            color:#646464;
+            line-height: 26px;
+        }
+        .img_brightness {
+            background-color: white;
+            display: inline-block;
+            transition: opacity 1s ease-in-out;
+            -moz-transition: opacity 1s ease-in-out;
+            -webkit-transition: opacity 1s ease-in-out;
+
+        }
+        .img_brightness img:hover {
+            opacity: 0.8;
+            transition: opacity 0.35s ease-in-out;
+            -moz-transition: opacity 0.35s ease-in-out;
+            -webkit-transition: opacity 0.35s ease-in-out;
+        }
+    </style>
+
+</head>
+
+<section class="oe_container">
+    <section class="oe_container">
+        <div class="mt-3">
+            <h1 class="text-center" style="color:#000">
+                Odoo - Klaviyo Integration
+            </h1>
+        </div>
+    </section>
+
+    <section class="oe_container fpg-container">
+        <div class="card">
+            <div class="card-body row">
+                <div class="col-8">
+                    <p class="d-inline mt-2 fpg-section-caption"><strong><b>Why Klaviyo?</b></strong></p>
+                    <p class="mt-2 fpg-section-text">
+                        With Klaviyo’s intelligent marketing automation software, you can automate personalized content with your data—without pressing send—and get a complete view of every customer. 
+                        For example, build cross-channel experiences with email, SMS, and push notifications in the same flow—with consolidated reports in one place.
+                    </p>
+                    <p>
+                        Learn more in Platform overview: <i style="color: #21B799">https://www.klaviyo.com/marketing-automation</i>.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body row">
+                <div class="col-8">
+                    <p class="d-inline mt-2 fpg-section-caption"><b>Integration components</b></p>
+                    <p class="mt-2 fpg-section-text">
+                        <ul>
+                            <li>
+                                Customer data:
+                                <ul>
+                                    <li>
+                                        Tracking information such as name, email, and other profile attributes.
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                Website activity:
+                                <ul>
+                                    <li>
+                                        Active on Site: When someone visits your website.
+                                    </li>
+                                    <li>
+                                        Viewed Product: When someone views a product.
+                                    </li>
+                                    <li>
+                                        Added to Cart: When someone adds an item to their cart.
+                                    </li>
+                                    <li>
+                                        Started Checkout: When someone lands on the checkout page.
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                Order activity:
+                                <ul>
+                                    <li>
+                                        Placed Order: When an order is successfully processed in your system, tracking amount, products, etc.
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p class="mt-2 fpg-section-text">
+                        Module it depends on:
+                        <div class="row ml-5 img_brightness">
+                            <a href="https://apps.odoo.com/apps/modules/18.0/fpg_odoo_klaviyo_key">
+                                <img class='mt-3 img-responsive' width="400" src="images/fpg_odoo_klaviyo_key.png">
+                            </a>
+                        </div>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <p class="d-inline fpg-section-caption"><b>Configuration:</b></p>
+                <div class="mt-2 fpg-section-text">
+                    <ol>
+                        <li>
+                            Setup the public API key, also called Site ID, to track Website activity:
+                            <ul>
+                                <li>
+                                    Login to your Klaviyo.com account to copy the public API key.<br/>
+                                    Follow the steps in How to manage your account's API keys: <i style="color: #21B799">https://help.klaviyo.com/hc/en-us/articles/115005062267</i>.
+                                </li>
+                                <li>
+                                    Go to General Settings -> Website, enable the Klaviyo option, and set the public API key.<br/>
+                                    <p>
+                                        <img class='mt-3 img-responsive' src="images/public_key.png">
+                                    </p>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="mt-2">
+                            Setup the private API key to track the Place Order action. The access level should include the Events with Read/Write Access:
+                            <ul>
+                                <li>
+                                    Follow the steps in Odoo - Klaviyo Private API Keys: <i style="color: #21B799">https://apps.odoo.com/apps/modules/18.0/fpg_odoo_klaviyo_key</i>.
+                                </li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <p class="d-inline fpg-section-caption"><b>Check the operations:</b></p>
+                <div class="mt-2 fpg-section-text">
+                    <ul>
+                        <li>
+                            Login to your Klaviyo.com account and go to the Profile listing. 
+                            Check if the Profile update datetime column is updated in profiles with recent activity.
+                            <p>
+                                <img class='mt-3 img-responsive' src="images/klaviyo_profiles.png">
+                            </p>
+                        </li>
+                        <li>
+                            Select the profile to check its activity on the Website.
+                            <p>
+                                <img class='mt-3 img-responsive' src="images/klaviyo_profile_activity.png">
+                            </p>
+                        </li>
+                        <li>
+                            You can also test and verify access and activity of Placed Order in the Odoo General Settings, Klaviyo section.<br/>
+                            Click on the Test Connection button to validate the private API key Events access level.<br/>
+                            Click on Open Logs link to check the status of the Placed Order actions:
+                            <ul>
+                                <li>
+                                    Sent: The action was sent to Klaviyo successfully.
+                                </li>
+                                <li>
+                                    Wating: The action is waiting to be sent to Klaviyo.
+                                </li>
+                                <li>
+                                    Cancelled: After 3 failed attempts, the action will not be attempted to be sent to Klaviyo.
+                                    You can open the log record to check the reason of the failure.
+                                </li>
+                            </ul>
+                            <p>
+                                <img class='mt-3 img-responsive' src="images/odoo_placed_orders.png">
+                            </p>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <p class="d-inline fpg-section-caption"><b>Help and Support</b></p>
+                <div class="mt-2 fpg-section-text">
+                    <p>
+                        Mail Contact: <a href="mailto:odooapps24@gmail.com">odooapps24@gmail.com</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+</section>

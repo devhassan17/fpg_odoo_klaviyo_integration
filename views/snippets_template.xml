@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="website_layout" inherit_id="website.layout" name="Klaviyo Snippet" priority="220">
+        <xpath expr="//meta[@name='generator']" position="before">
+            <t t-if="website and website.klaviyo_public_key and not editable">
+                &lt;!-- Klaviyo Initialization --&gt;
+                <script async="" type='text/javascript' t-attf-src='https://static.klaviyo.com/onsite/js/{{website.klaviyo_public_key}}/klaviyo.js'/>
+                <script>
+                    !function(){if(!window.klaviyo){window._klOnsite=window._klOnsite||[];try{window.klaviyo=new Proxy({},{get:function(n,i){return"push"===i?function(){var n;(n=window._klOnsite).push.apply(n,arguments)}:function(){for(var n=arguments.length,o=new Array(n),w=0;w&lt;n;w++)o[w]=arguments[w];var t="function"==typeof o[o.length-1]?o.pop():void 0,e=new Promise((function(n){window._klOnsite.push([i].concat(o,[function(i){t&amp;&amp;t(i),n(i)}]))}));return e}}})}catch(n){window.klaviyo=window.klaviyo||[],window.klaviyo.push=function(){var n;(n=window._klOnsite).push.apply(n,arguments)}}}}();
+                </script>
+                &lt;!-- End Klaviyo Initialization --&gt;
+            </t>
+            <t t-else="">
+                <script>
+                    klaviyo = function() {
+                        console.log("Klaviyo events are not triggered for the website administrator");
+                    }
+                </script>
+            </t>
+        </xpath>
+
+        <xpath expr="//head[1]" position="inside">
+            <t t-if="request.env.user.email and website and website.klaviyo_public_key and not editable">
+                <script>
+                    klaviyo.identify({
+                        "email": "<t t-esc="request.env.user.email"/>",
+                        "$first_name": "<t t-esc="request.env.user.name"/>",
+                        "$phone_number": "<t t-esc="request.env.user.phone or request.env.user.mobile or ''"/>",
+                    });
+                </script>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="products_add_to_cart" inherit_id="website_sale.products_add_to_cart" name="Klaviyo, shop-products tracking" priority="220">
+        <xpath expr="//t/a" position="attributes">
+            <t t-if="website and website.klaviyo_public_key and not editable">
+                <attribute name="t-attf-onclick" separator=" " add="
+                    klaviyo.push(['track', 'Added to Cart', {
+                        'AddedItemProductName': '#{product.name}',
+                        'AddedItemProductID': #{product.id},
+                        'AddedItemSKU': '#{product.default_code}',
+                        'AddedItemPrice': #{product.list_price},
+                        'AddedItemURL': '#{product._get_item_url()}',
+                        'AddedItemImageURL': '#{product.website_meta_og_img}',
+                        'AddedItemQuantity': 1
+                    }]);
+                "/>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="product" inherit_id="website_sale.product" name="Klaviyo, product tracking" priority="220">
+        <xpath expr="//div[@id='wrap']" position="before">
+            <t t-if="website and website.klaviyo_public_key and not editable">
+                <script>
+                    klaviyo.push(["track", "Viewed Product", {
+                        "ProductName": "<t t-esc="combination_info['display_name']"/>",
+                        "ProductID": <t t-esc="combination_info['product_id']"/>,
+                        "SKU": "<t t-esc="product_variant.default_code"/>",
+                        "Price": <t t-esc="combination_info['price']"/>,
+                        "URL": "<t t-esc="combination_info['url']"/>",
+                        "ImageURL": "<t t-esc="combination_info['image_url']"/>",
+                    }]);
+                    klaviyo.push(["trackViewedItem", {
+                        "Title": "<t t-esc="combination_info['display_name']"/>",
+                        "ItemId": <t t-esc="combination_info['product_id']"/>,
+                        "URL": "<t t-esc="combination_info['url']"/>",
+                        "ImageUrl": "<t t-esc="combination_info['image_url']"/>",
+                        "Metadata": {
+                            "Price": <t t-esc="combination_info['price']"/>,
+                        }
+                    }]);
+                </script>
+            </t>
+        </xpath>
+
+        <xpath expr="//a[@id='add_to_cart']" position="attributes">
+            <t t-if="website and website.klaviyo_public_key and not editable">
+                <attribute name="t-attf-onclick" separator=" " add="
+                    klaviyo.push(['track', 'Added to Cart', {
+                        'AddedItemProductName': '#{product.name}',
+                        'AddedItemProductID': #{product.id},
+                        'AddedItemSKU': '#{product.default_code}',
+                        'AddedItemPrice': #{product.list_price},
+                        'AddedItemURL': '#{product._get_item_url()}',
+                        'AddedItemImageURL': '#{product.website_meta_og_img}',
+                        'AddedItemQuantity': document.getElementsByName('add_qty')[0].value
+                    }]);
+                "/>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="payment" inherit_id="website_sale.payment" name="Klaviyo, payment tracking" priority="220">
+        <xpath expr="//t[@t-set='oe_structure']" position="before">
+            <t t-if="website and website.klaviyo_public_key and not editable">
+                <script>
+                    klaviyo.push(["track", "Started Checkout", {
+                        "$event_id": "<t t-esc="order.name"/>".concat("_", Date.now()),
+                        "$value": <t t-esc="order.amount_total"/>,
+                        "Items": [
+                            <t t-foreach="order.order_line" t-as="line">
+                            {
+                                "ProductID": <t t-esc="line.product_id.id"/>,
+                                "SKU": "<t t-esc="line.product_id.default_code"/>",
+                                "ProductName": "<t t-esc="line.product_id.name"/>",
+                                "Quantity": <t t-esc="line.product_uom_qty"/>,
+                                "ItemPrice": <t t-esc="line.price_unit"/>,
+                                "RowTotal": <t t-esc="line.price_subtotal"/>,
+                                "ProductURL": "<t t-esc="line.product_id._get_item_url()"/>",
+                                "ImageURL": "<t t-esc="line.product_id.website_meta_og_img"/>",
+                            },
+                        </t>
+                        ]
+                    }]);
+                </script>
+            </t>
+        </xpath>
+    </template>
+</odoo>

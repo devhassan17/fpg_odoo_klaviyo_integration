@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_klaviyo_track" model="ir.ui.view">
+        <field name="name">res.config.settings.form.inherit</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="22"/>
+        <field name="inherit_id" ref="website.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <setting id="google_analytics_setting" position="after">
+                <setting id="klaviyo_tracking_settings" help="Visitor tracking with Klaviyo">
+                    <field name="has_klaviyo"/>
+                    <div class="content-group" invisible="not has_klaviyo">
+                        <div class="row mt16">
+                            <label class="col-lg-3 o_light_label" string="Public API Key" for="klaviyo_public_key"/>
+                            <field name="klaviyo_public_key" placeholder="XXXXXX" required="has_klaviyo"/>
+                        </div>
+                    </div>
+                    <div invisible="not has_klaviyo">
+                        <a href="https://help.klaviyo.com/hc/en-us/articles/115005062267" class="oe_link" target="_blank">
+                            <i class="oi oi-arrow-right"/>
+                            How to manage your account's API keys
+                        </a>
+                    </div>
+                </setting>
+            </setting>
+        </field>
+    </record>
+
+    <record id="res_config_settings_view_form_klaviyo_logs" model="ir.ui.view">
+        <field name="name">res.config.settings.form.inherit</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="22"/>
+        <field name="inherit_id" ref="fpg_odoo_klaviyo_key.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <app name="fpg_odoo_klaviyo_key" position="inside">
+                <block title="Integration" name="odoo_klaviyo_event_setting_block">
+                    <setting string="Klaviyo Event Logs" id="odoo_klaviyo_event_settings" help="Check the logs to verify that Kaviyo events are being sent correctly">
+                        <div class="mt8">
+                            <button name="%(fpg_odoo_klaviyo_integration.klaviyo_event_queue_form_action)d" 
+                                icon="oi-arrow-right" type="action" string="Open Logs" class="btn-link"/>
+                        </div>
+                    </setting>
+                    <div class="my-3">
+                        <button class="btn btn-primary" type="object" name="action_test_connection" string="Test Connection"/>
+                    </div>
+                    <div class="alert alert-info mt4" role="alert">
+                        The public key is located in the Website settings.<br/>
+                        The connection test will verify access to the event endpoint using the private key.
+                    </div>
+                </block>
+            </app>
+        </field>
+    </record>
+</odoo>
