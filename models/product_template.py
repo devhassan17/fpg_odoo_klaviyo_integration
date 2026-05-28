@@ -10,11 +10,15 @@ class ProductTemplate(models.Model):
 
     def _get_combination_info(
         self, combination=False, product_id=False, add_qty=1.0,
-        parent_combination=False, only_template=False,
+        parent_combination=False, only_template=False, **kwargs
     ):
         res = super()._get_combination_info(
-            combination, product_id, add_qty,
-            parent_combination, only_template
+            combination=combination,
+            product_id=product_id,
+            add_qty=add_qty,
+            parent_combination=parent_combination,
+            only_template=only_template,
+            **kwargs
         )
         res.update({
             'url': self._get_item_url(),
