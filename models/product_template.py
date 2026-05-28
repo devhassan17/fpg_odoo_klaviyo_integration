@@ -8,18 +8,8 @@ from odoo import models
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
-    def _get_combination_info(
-        self, combination=False, product_id=False, add_qty=1.0,
-        parent_combination=False, only_template=False, **kwargs
-    ):
-        res = super()._get_combination_info(
-            combination=combination,
-            product_id=product_id,
-            add_qty=add_qty,
-            parent_combination=parent_combination,
-            only_template=only_template,
-            **kwargs
-        )
+    def _get_combination_info(self, *args, **kwargs):
+        res = super()._get_combination_info(*args, **kwargs)
         res.update({
             'url': self._get_item_url(),
             'image_url': self.website_meta_og_img or ''
