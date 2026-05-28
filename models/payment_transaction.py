@@ -17,10 +17,13 @@ class PaymentTransaction(models.Model):
         reference = self.reference if idx == -1 else self.reference[:idx]
         order_id = self.env['sale.order'].search([('name', 'ilike', reference)])
         if order_id:
-            # Put Klaviyo Event into the Queue
-            self.env['fpg.odoo.klaviyo.integration.event.queue'].create({
-                'order_id': order_id.id,
-                'transaction_id': self.id
-            })
+            # Put Klaviyo Event into the Queue if not already queued
+            event_queue = self.env['fpg.odoo.klaviyo.integration.event.queue']
+            existing_event = event_queue.search([('transaction_id', '=', self.id)], limit=1)
+            if not existing_event:
+                event_queue.create({
+                    'order_id': order_id.id,
+                    'transaction_id': self.id
+                })
         # Return Transaction
         return res
