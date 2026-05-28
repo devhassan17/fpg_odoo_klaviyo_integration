@@ -6,10 +6,10 @@ from odoo import models
 class PaymentTransaction(models.Model):
     _inherit = 'payment.transaction'
 
-    def _set_done(self, state_message=None, extra_allowed_states=()):
+    def _set_done(self, *args, **kwargs):
         """Ref: https://www.odoo.com/documentation/19.0/developer/reference/standard_modules/payment/payment_transaction.html
         """
-        res = super()._set_done(state_message, extra_allowed_states)
+        res = super()._set_done(*args, **kwargs)
 
         # Get Sale Order by Reference
         # Get the Order Name from these cases: S00300-1, S00300-2
