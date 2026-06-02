@@ -16,6 +16,7 @@
         'data/ir_cron_data.xml',
         'views/klaviyo_event_queue_views.xml',
         'views/res_config_settings_views.xml',
+        'views/res_partner_views.xml',
         'views/snippets_template.xml',
     ],
     'installable': True,

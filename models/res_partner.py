@@ -19,14 +19,22 @@ KLAVIYO_HEADERS = {
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
+    klaviyo_marketing_opt_in = fields.Boolean(
+        string='Klaviyo Marketing Opt-In',
+        default=False,
+        help='If checked, this contact has opted in to receive marketing emails via Klaviyo.',
+        tracking=True,
+    )
+
     def write(self, vals):
         res = super(ResPartner, self).write(vals)
         # Trigger subscription if:
-        # 1. x_marketing_opt_in is being set to True
-        # 2. Or, email is being changed/set AND x_marketing_opt_in is True
-        if ('x_marketing_opt_in' in vals and vals.get('x_marketing_opt_in')) or ('email' in vals and self.filtered(lambda p: p.x_marketing_opt_in)):
+        # 1. klaviyo_marketing_opt_in is being set to True
+        # 2. Or, email is being changed/set AND klaviyo_marketing_opt_in is True
+        if ('klaviyo_marketing_opt_in' in vals and vals.get('klaviyo_marketing_opt_in')) or \
+           ('email' in vals and self.filtered(lambda p: p.klaviyo_marketing_opt_in)):
             for partner in self:
-                if partner.x_marketing_opt_in and partner.email:
+                if partner.klaviyo_marketing_opt_in and partner.email:
                     partner._subscribe_to_klaviyo()
         return res
 
@@ -34,7 +42,7 @@ class ResPartner(models.Model):
     def create(self, vals_list):
         partners = super(ResPartner, self).create(vals_list)
         for partner in partners:
-            if partner.x_marketing_opt_in and partner.email:
+            if partner.klaviyo_marketing_opt_in and partner.email:
                 partner._subscribe_to_klaviyo()
         return partners
 
