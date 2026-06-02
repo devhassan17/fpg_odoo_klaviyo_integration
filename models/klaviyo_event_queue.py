@@ -2,11 +2,14 @@
 
 import ast
 import json
+import logging
 import requests
 
 from requests.exceptions import JSONDecodeError as RequestsJSONDecodeError
 
 from odoo import fields, models
+
+_logger = logging.getLogger(__name__)
 
 KLAVIYO_URL = 'https://a.klaviyo.com/api/events'
 KLAVIYO_HEADERS = '{' \
@@ -83,6 +86,14 @@ class KlaviyoEventQueue(models.Model):
                     'state': 'sent',
                     'message': 'Sent OK'
                 })
+                # Auto-subscribe partner if opted in
+                partner = event.partner_id or event.order_id.partner_id
+                if partner and partner.email and (partner.klaviyo_marketing_opt_in or partner.x_marketing_opt_in):
+                    try:
+                        _logger.info("Klaviyo: Auto-subscribing partner %s (id=%s) during order event sending", partner.name, partner.id)
+                        partner._subscribe_to_klaviyo()
+                    except Exception as e:
+                        _logger.exception("Klaviyo: Failed to auto-subscribe partner %s during event processing", partner.id)
             else:
                 try:
                     data.update({
