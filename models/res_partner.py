@@ -38,6 +38,34 @@ class ResPartner(models.Model):
                 partner._subscribe_to_klaviyo()
         return partners
 
+    def _get_klaviyo_list_id(self, api_key):
+        """Helper to get an existing list ID on Klaviyo to subscribe the profile to.
+        Never creates a new list.
+        """
+        headers = KLAVIYO_HEADERS.copy()
+        headers["Authorization"] = headers["Authorization"] % api_key
+
+        try:
+            # Fetch existing lists
+            response = requests.get(
+                url='https://a.klaviyo.com/api/lists',
+                headers=headers,
+                timeout=5
+            )
+            if response.status_code == 200:
+                lists_data = response.json().get('data', [])
+                # First check for names containing newsletter, subscriber, or marketing
+                for lst in lists_data:
+                    name = lst.get('attributes', {}).get('name', '').lower()
+                    if 'newsletter' in name or 'subscriber' in name or 'marketing' in name:
+                        return lst.get('id')
+                # If no match, use the first list
+                if lists_data:
+                    return lists_data[0].get('id')
+        except Exception as e:
+            _logger.exception("Exception occurred while resolving Klaviyo List ID")
+        return False
+
     def _subscribe_to_klaviyo(self):
         """Subscribe the partner's email to Klaviyo with email consent immediately.
         Uses historical_import=True to bypass double opt-in confirmation.
@@ -46,6 +74,12 @@ class ResPartner(models.Model):
         is_test, api_key = self.env['res.config.settings'].get_klaviyo_api_key()
         if not api_key:
             _logger.warning("Klaviyo Subscription: Private API Key is missing.")
+            return
+
+        # Resolve list_id dynamically (without creating any new list)
+        list_id = self._get_klaviyo_list_id(api_key)
+        if not list_id:
+            _logger.warning("Klaviyo Subscription: Unable to resolve any subscription list ID.")
             return
 
         # Safely fetch split names if available
@@ -82,6 +116,14 @@ class ResPartner(models.Model):
                         ]
                     },
                     "custom_source": "Odoo Marketing Consent Checkbox"
+                },
+                "relationships": {
+                    "list": {
+                        "data": {
+                            "type": "list",
+                            "id": list_id
+                        }
+                    }
                 }
             }
         }
