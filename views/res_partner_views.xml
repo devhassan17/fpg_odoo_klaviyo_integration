@@ -7,6 +7,19 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='lang']" position="after">
                 <field name="klaviyo_marketing_opt_in" widget="boolean_toggle"/>
+                <button name="action_test_klaviyo_subscription"
+                        type="object"
+                        string="Test Klaviyo Subscription"
+                        class="btn-link"
+                        icon="fa-flask"
+                        invisible="not email"/>
+            </xpath>
+            <xpath expr="//page[last()]" position="after">
+                <page string="Klaviyo" name="klaviyo_debug">
+                    <group>
+                        <field name="klaviyo_subscription_log" readonly="1" widget="text"/>
+                    </group>
+                </page>
             </xpath>
         </field>
     </record>

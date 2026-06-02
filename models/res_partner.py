@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import json
 import logging
 import requests
 from datetime import datetime, timezone, timedelta
@@ -24,6 +25,11 @@ class ResPartner(models.Model):
         default=False,
         help='If checked, this contact has opted in to receive marketing emails via Klaviyo.',
         tracking=True,
+    )
+    klaviyo_subscription_log = fields.Text(
+        string='Klaviyo Subscription Log',
+        readonly=True,
+        help='Diagnostic log from the last Klaviyo subscription attempt.',
     )
 
     def write(self, vals):
@@ -204,3 +210,159 @@ class ResPartner(models.Model):
             _logger.exception("Klaviyo Subscription EXCEPTION for %s", self.email)
 
         _logger.info("Klaviyo Subscription: === END === for %s", self.email)
+
+    def action_test_klaviyo_subscription(self):
+        """Button action: test the Klaviyo subscription and show results in the UI."""
+        self.ensure_one()
+        log_lines = []
+        log_lines.append(f"=== Klaviyo Subscription Test ===")
+        log_lines.append(f"Timestamp: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}")
+        log_lines.append(f"Partner: {self.name} (id={self.id})")
+        log_lines.append(f"Email: {self.email}")
+        log_lines.append(f"Opt-In: {self.klaviyo_marketing_opt_in}")
+        log_lines.append("")
+
+        if not self.email:
+            log_lines.append("❌ ABORTED: No email address on this contact.")
+            self.klaviyo_subscription_log = '\n'.join(log_lines)
+            return self._klaviyo_notify('No email address', 'danger')
+
+        # Step 1: API Key
+        try:
+            is_test, api_key = self.env['res.config.settings'].get_klaviyo_api_key()
+            log_lines.append(f"Step 1 - API Key: is_test={is_test}, key_present={bool(api_key)}")
+            if api_key:
+                log_lines.append(f"  Key prefix: {api_key[:6]}...")
+        except Exception as e:
+            log_lines.append(f"Step 1 - API Key: ❌ EXCEPTION: {e}")
+            self.klaviyo_subscription_log = '\n'.join(log_lines)
+            return self._klaviyo_notify(f'API Key error: {e}', 'danger')
+
+        if not api_key:
+            log_lines.append("❌ ABORTED: Private API Key is missing.")
+            self.klaviyo_subscription_log = '\n'.join(log_lines)
+            return self._klaviyo_notify('Private API Key is missing', 'danger')
+
+        # Step 2: Fetch Lists
+        headers = KLAVIYO_HEADERS.copy()
+        headers["Authorization"] = headers["Authorization"] % api_key
+        try:
+            lists_response = requests.get(
+                url='https://a.klaviyo.com/api/lists',
+                headers=headers,
+                timeout=10
+            )
+            log_lines.append(f"Step 2 - Fetch Lists: status={lists_response.status_code}")
+            if lists_response.status_code == 200:
+                lists_data = lists_response.json().get('data', [])
+                for lst in lists_data:
+                    lid = lst.get('id')
+                    lname = lst.get('attributes', {}).get('name', 'N/A')
+                    log_lines.append(f"  List: '{lname}' (id={lid})")
+                if not lists_data:
+                    log_lines.append("  ⚠️ No lists found in Klaviyo account!")
+            else:
+                log_lines.append(f"  ❌ Response: {lists_response.text[:300]}")
+        except Exception as e:
+            log_lines.append(f"Step 2 - Fetch Lists: ❌ EXCEPTION: {e}")
+            self.klaviyo_subscription_log = '\n'.join(log_lines)
+            return self._klaviyo_notify(f'Lists fetch error: {e}', 'danger')
+
+        # Step 3: Resolve List ID
+        list_id = self._get_klaviyo_list_id(api_key)
+        log_lines.append(f"Step 3 - Resolved List ID: {list_id}")
+        if not list_id:
+            log_lines.append("❌ ABORTED: Could not resolve a list ID.")
+            self.klaviyo_subscription_log = '\n'.join(log_lines)
+            return self._klaviyo_notify('No Klaviyo list found', 'danger')
+
+        # Step 4: Build & Send Payload
+        first_name = getattr(self, 'x_first_name', '') or self.name or ''
+        last_name = getattr(self, 'x_last_name', '') or ''
+        consented_at = (datetime.now(timezone.utc) - timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        payload = {
+            "data": {
+                "type": "profile-subscription-bulk-create-job",
+                "attributes": {
+                    "historical_import": True,
+                    "profiles": {
+                        "data": [
+                            {
+                                "type": "profile",
+                                "attributes": {
+                                    "email": self.email,
+                                    "first_name": first_name,
+                                    "last_name": last_name,
+                                    "subscriptions": {
+                                        "email": {
+                                            "marketing": {
+                                                "consent": "SUBSCRIBED",
+                                                "consented_at": consented_at
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "custom_source": "Odoo Marketing Consent Checkbox"
+                },
+                "relationships": {
+                    "list": {
+                        "data": {
+                            "type": "list",
+                            "id": list_id
+                        }
+                    }
+                }
+            }
+        }
+
+        log_lines.append(f"Step 4 - Payload built:")
+        log_lines.append(f"  email={self.email}, first_name={first_name}, last_name={last_name}")
+        log_lines.append(f"  consented_at={consented_at}")
+        log_lines.append(f"  list_id={list_id}")
+        log_lines.append(f"  historical_import=True")
+        log_lines.append(f"  URL: {KLAVIYO_SUBSCRIBE_URL}")
+        log_lines.append(f"  Revision: {headers.get('revision')}")
+        log_lines.append("")
+
+        try:
+            response = requests.post(
+                url=KLAVIYO_SUBSCRIBE_URL,
+                json=payload,
+                headers=headers,
+                timeout=10
+            )
+            log_lines.append(f"Step 5 - API Response:")
+            log_lines.append(f"  Status Code: {response.status_code}")
+            log_lines.append(f"  Response Body: {response.text[:500] if response.text else '(empty)'}")
+
+            if response.status_code in (200, 202):
+                log_lines.append("")
+                log_lines.append("✅ SUCCESS — Subscription request accepted by Klaviyo.")
+                self.klaviyo_subscription_log = '\n'.join(log_lines)
+                return self._klaviyo_notify(f'Success! Status {response.status_code}. Check Klaviyo in ~30 seconds.', 'success')
+            else:
+                log_lines.append("")
+                log_lines.append(f"❌ FAILED — Klaviyo returned status {response.status_code}")
+                self.klaviyo_subscription_log = '\n'.join(log_lines)
+                return self._klaviyo_notify(f'Failed: {response.status_code} — {response.text[:200]}', 'danger')
+        except Exception as e:
+            log_lines.append(f"Step 5 - ❌ EXCEPTION: {e}")
+            self.klaviyo_subscription_log = '\n'.join(log_lines)
+            return self._klaviyo_notify(f'Exception: {e}', 'danger')
+
+    def _klaviyo_notify(self, message, notif_type='info'):
+        """Return a notification action."""
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Klaviyo Subscription',
+                'message': message,
+                'type': notif_type,
+                'sticky': True,
+            }
+        }
