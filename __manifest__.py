@@ -8,7 +8,8 @@
     'version': '19.0.1.0.9',
     'depends': [
         'website_sale',
-        'fpg_odoo_klaviyo_key'
+        'fpg_odoo_klaviyo_key',
+        'odoo_uk_checkout_custom'
     ],
     'data': [
         'security/ir.model.access.csv',

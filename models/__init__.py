@@ -6,3 +6,5 @@ from . import product_product
 from . import product_template
 from . import payment_transaction
 from . import klaviyo_event_queue
+from . import res_partner
+
