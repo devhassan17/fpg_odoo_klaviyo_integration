@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import json
 import logging
 import requests
+from datetime import datetime, timezone, timedelta
 from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
@@ -38,58 +38,9 @@ class ResPartner(models.Model):
                 partner._subscribe_to_klaviyo()
         return partners
 
-    def _get_or_create_klaviyo_list_id(self, api_key):
-        """Helper to get or create a list ID on Klaviyo to subscribe the profile to.
-        """
-        headers = KLAVIYO_HEADERS.copy()
-        headers["Authorization"] = headers["Authorization"] % api_key
-
-        try:
-            # 1. Fetch existing lists
-            response = requests.get(
-                url='https://a.klaviyo.com/api/lists',
-                headers=headers,
-                timeout=5
-            )
-            if response.status_code == 200:
-                lists_data = response.json().get('data', [])
-                # First check for names containing newsletter, subscriber, or marketing
-                for lst in lists_data:
-                    name = lst.get('attributes', {}).get('name', '').lower()
-                    if 'newsletter' in name or 'subscriber' in name or 'marketing' in name:
-                        return lst.get('id')
-                # If no match, use the first list
-                if lists_data:
-                    return lists_data[0].get('id')
-
-            # 2. If no lists exist, create a new one named "Newsletter"
-            create_payload = {
-                "data": {
-                    "type": "list",
-                    "attributes": {
-                        "name": "Newsletter"
-                    }
-                }
-            }
-            create_response = requests.post(
-                url='https://a.klaviyo.com/api/lists',
-                json=create_payload,
-                headers=headers,
-                timeout=5
-            )
-            if create_response.status_code in (200, 201, 202):
-                return create_response.json().get('data', {}).get('id')
-            else:
-                _logger.error(
-                    "Klaviyo List creation failed. Code: %s, Response: %s",
-                    create_response.status_code, create_response.text
-                )
-        except Exception as e:
-            _logger.exception("Exception occurred while resolving Klaviyo List ID")
-        return False
-
     def _subscribe_to_klaviyo(self):
-        """Subscribe the partner's email to Klaviyo with email consent.
+        """Subscribe the partner's email to Klaviyo with email consent immediately.
+        Uses historical_import=True to bypass double opt-in confirmation.
         """
         # We need the API key
         is_test, api_key = self.env['res.config.settings'].get_klaviyo_api_key()
@@ -97,21 +48,19 @@ class ResPartner(models.Model):
             _logger.warning("Klaviyo Subscription: Private API Key is missing.")
             return
 
-        # Resolve list_id dynamically
-        list_id = self._get_or_create_klaviyo_list_id(api_key)
-        if not list_id:
-            _logger.warning("Klaviyo Subscription: Unable to resolve subscription list ID.")
-            return
-
         # Safely fetch split names if available
         first_name = getattr(self, 'x_first_name', '') or self.name or ''
         last_name = getattr(self, 'x_last_name', '') or ''
+
+        # Use an ISO 8601 UTC timestamp slightly in the past
+        consented_at = (datetime.now(timezone.utc) - timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Prepare payload
         payload = {
             "data": {
                 "type": "profile-subscription-bulk-create-job",
                 "attributes": {
+                    "historical_import": True,
                     "profiles": {
                         "data": [
                             {
@@ -123,7 +72,8 @@ class ResPartner(models.Model):
                                     "subscriptions": {
                                         "email": {
                                             "marketing": {
-                                                "consent": "SUBSCRIBED"
+                                                "consent": "SUBSCRIBED",
+                                                "consented_at": consented_at
                                             }
                                         }
                                     }
@@ -132,14 +82,6 @@ class ResPartner(models.Model):
                         ]
                     },
                     "custom_source": "Odoo Marketing Consent Checkbox"
-                },
-                "relationships": {
-                    "list": {
-                        "data": {
-                            "type": "list",
-                            "id": list_id
-                        }
-                    }
                 }
             }
         }
@@ -160,6 +102,6 @@ class ResPartner(models.Model):
                     self.email, response.status_code, response.text
                 )
             else:
-                _logger.info("Successfully requested Klaviyo subscription for %s", self.email)
+                _logger.info("Successfully subscribed %s to Klaviyo (Double Opt-in Bypassed)", self.email)
         except Exception as e:
             _logger.exception("Exception occurred while subscribing %s to Klaviyo", self.email)
