@@ -22,8 +22,8 @@ class ResPartner(models.Model):
 
     klaviyo_marketing_opt_in = fields.Boolean(
         string='Klaviyo Marketing Opt-In',
-        related='x_marketing_opt_in',
-        readonly=False,
+        compute='_compute_klaviyo_marketing_opt_in',
+        inverse='_inverse_klaviyo_marketing_opt_in',
         store=True,
         help='If checked, this contact has opted in to receive marketing emails via Klaviyo.',
         tracking=True,
@@ -33,6 +33,16 @@ class ResPartner(models.Model):
         readonly=True,
         help='Diagnostic log from the last Klaviyo subscription attempt.',
     )
+
+    @api.depends('x_marketing_opt_in')
+    def _compute_klaviyo_marketing_opt_in(self):
+        for partner in self:
+            # Handle cases where x_marketing_opt_in might not be initialized yet
+            partner.klaviyo_marketing_opt_in = partner.x_marketing_opt_in or False
+
+    def _inverse_klaviyo_marketing_opt_in(self):
+        for partner in self:
+            partner.x_marketing_opt_in = partner.klaviyo_marketing_opt_in
 
     def write(self, vals):
         res = super(ResPartner, self).write(vals)
