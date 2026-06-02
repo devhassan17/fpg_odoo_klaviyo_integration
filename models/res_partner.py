@@ -132,8 +132,8 @@ class ResPartner(models.Model):
 
         _logger.info("Klaviyo Subscription: Using list ID '%s' for %s", list_id, self.email)
 
-        # Use an ISO 8601 UTC timestamp slightly in the past
-        consented_at = (datetime.now(timezone.utc) - timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # Use an ISO 8601 / RFC 3339 UTC timestamp in the past
+        consented_at = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
         _logger.info(
             "Klaviyo Subscription: Profile data — email=%s, consented_at=%s",
             self.email, consented_at
@@ -271,7 +271,7 @@ class ResPartner(models.Model):
             return self._klaviyo_notify('No Klaviyo list found', 'danger')
 
         # Step 4: Build & Send Payload
-        consented_at = (datetime.now(timezone.utc) - timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        consented_at = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
         # Only email + subscriptions are valid for this endpoint
         payload = {
