@@ -22,7 +22,9 @@ class ResPartner(models.Model):
 
     klaviyo_marketing_opt_in = fields.Boolean(
         string='Klaviyo Marketing Opt-In',
-        default=False,
+        related='x_marketing_opt_in',
+        readonly=False,
+        store=True,
         help='If checked, this contact has opted in to receive marketing emails via Klaviyo.',
         tracking=True,
     )
@@ -35,10 +37,13 @@ class ResPartner(models.Model):
     def write(self, vals):
         res = super(ResPartner, self).write(vals)
         # Trigger subscription if:
-        # 1. klaviyo_marketing_opt_in is being set to True
-        # 2. Or, email is being changed/set AND klaviyo_marketing_opt_in is True
-        opt_in_changed = 'klaviyo_marketing_opt_in' in vals and vals.get('klaviyo_marketing_opt_in')
-        email_changed = 'email' in vals and self.filtered(lambda p: p.klaviyo_marketing_opt_in)
+        # 1. klaviyo_marketing_opt_in or x_marketing_opt_in is being set to True
+        # 2. Or, email is being changed/set AND either is True
+        opt_in_changed = (
+            ('klaviyo_marketing_opt_in' in vals and vals.get('klaviyo_marketing_opt_in')) or
+            ('x_marketing_opt_in' in vals and vals.get('x_marketing_opt_in'))
+        )
+        email_changed = 'email' in vals and self.filtered(lambda p: p.klaviyo_marketing_opt_in or p.x_marketing_opt_in)
         if opt_in_changed or email_changed:
             _logger.info(
                 "Klaviyo: write() triggered subscription flow. "
@@ -46,12 +51,12 @@ class ResPartner(models.Model):
                 opt_in_changed, bool(email_changed), self.ids
             )
             for partner in self:
-                if partner.klaviyo_marketing_opt_in and partner.email:
+                if (partner.klaviyo_marketing_opt_in or partner.x_marketing_opt_in) and partner.email:
                     partner._subscribe_to_klaviyo()
                 else:
                     _logger.info(
                         "Klaviyo: Skipping partner %s (id=%s) — opt_in=%s, email=%s",
-                        partner.name, partner.id, partner.klaviyo_marketing_opt_in, partner.email
+                        partner.name, partner.id, partner.klaviyo_marketing_opt_in or partner.x_marketing_opt_in, partner.email
                     )
         return res
 
@@ -59,7 +64,7 @@ class ResPartner(models.Model):
     def create(self, vals_list):
         partners = super(ResPartner, self).create(vals_list)
         for partner in partners:
-            if partner.klaviyo_marketing_opt_in and partner.email:
+            if (partner.klaviyo_marketing_opt_in or partner.x_marketing_opt_in) and partner.email:
                 _logger.info(
                     "Klaviyo: create() triggered subscription for %s (id=%s)",
                     partner.email, partner.id
