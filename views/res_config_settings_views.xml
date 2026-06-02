@@ -14,10 +14,6 @@
                             <label class="col-lg-3 o_light_label" string="Public API Key" for="klaviyo_public_key"/>
                             <field name="klaviyo_public_key" placeholder="XXXXXX" required="has_klaviyo"/>
                         </div>
-                        <div class="row mt16">
-                            <label class="col-lg-3 o_light_label" string="Subscription List ID" for="klaviyo_subscription_list_id"/>
-                            <field name="klaviyo_subscription_list_id" placeholder="e.g. YYYYYY" required="has_klaviyo"/>
-                        </div>
                     </div>
                     <div invisible="not has_klaviyo">
                         <a href="https://help.klaviyo.com/hc/en-us/articles/115005062267" class="oe_link" target="_blank">

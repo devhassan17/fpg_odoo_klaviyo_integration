@@ -9,6 +9,3 @@ class Website(models.Model):
     klaviyo_public_key = fields.Char(
         string='Klaviyo Public Key'
     )
-    klaviyo_subscription_list_id = fields.Char(
-        string='Klaviyo Subscription List ID'
-    )

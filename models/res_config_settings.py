@@ -21,17 +21,11 @@ class ResConfigSettings(models.TransientModel):
         related='website_id.klaviyo_public_key',
         readonly=False
     )
-    klaviyo_subscription_list_id = fields.Char(
-        string='Klaviyo Subscription List ID',
-        related='website_id.klaviyo_subscription_list_id',
-        readonly=False
-    )
 
     @api.onchange('has_klaviyo')
     def _onchange_has_klaviyo(self):
         if not self.has_klaviyo:
             self.klaviyo_public_key = False
-            self.klaviyo_subscription_list_id = False
 
     def action_test_connection(self):
         """Test access
