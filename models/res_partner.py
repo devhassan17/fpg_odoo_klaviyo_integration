@@ -132,18 +132,14 @@ class ResPartner(models.Model):
 
         _logger.info("Klaviyo Subscription: Using list ID '%s' for %s", list_id, self.email)
 
-        # Safely fetch split names if available
-        first_name = getattr(self, 'x_first_name', '') or self.name or ''
-        last_name = getattr(self, 'x_last_name', '') or ''
-
         # Use an ISO 8601 UTC timestamp slightly in the past
         consented_at = (datetime.now(timezone.utc) - timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
         _logger.info(
-            "Klaviyo Subscription: Profile data — email=%s, first_name=%s, last_name=%s, consented_at=%s",
-            self.email, first_name, last_name, consented_at
+            "Klaviyo Subscription: Profile data — email=%s, consented_at=%s",
+            self.email, consented_at
         )
 
-        # Prepare payload
+        # Prepare payload — only email + subscriptions are valid for this endpoint
         payload = {
             "data": {
                 "type": "profile-subscription-bulk-create-job",
@@ -155,8 +151,6 @@ class ResPartner(models.Model):
                                 "type": "profile",
                                 "attributes": {
                                     "email": self.email,
-                                    "first_name": first_name,
-                                    "last_name": last_name,
                                     "subscriptions": {
                                         "email": {
                                             "marketing": {
@@ -277,10 +271,9 @@ class ResPartner(models.Model):
             return self._klaviyo_notify('No Klaviyo list found', 'danger')
 
         # Step 4: Build & Send Payload
-        first_name = getattr(self, 'x_first_name', '') or self.name or ''
-        last_name = getattr(self, 'x_last_name', '') or ''
         consented_at = (datetime.now(timezone.utc) - timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
+        # Only email + subscriptions are valid for this endpoint
         payload = {
             "data": {
                 "type": "profile-subscription-bulk-create-job",
@@ -292,8 +285,6 @@ class ResPartner(models.Model):
                                 "type": "profile",
                                 "attributes": {
                                     "email": self.email,
-                                    "first_name": first_name,
-                                    "last_name": last_name,
                                     "subscriptions": {
                                         "email": {
                                             "marketing": {
@@ -320,7 +311,7 @@ class ResPartner(models.Model):
         }
 
         log_lines.append(f"Step 4 - Payload built:")
-        log_lines.append(f"  email={self.email}, first_name={first_name}, last_name={last_name}")
+        log_lines.append(f"  email={self.email}")
         log_lines.append(f"  consented_at={consented_at}")
         log_lines.append(f"  list_id={list_id}")
         log_lines.append(f"  historical_import=True")
