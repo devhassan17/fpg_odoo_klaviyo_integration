@@ -46,28 +46,31 @@ class ResPartner(models.Model):
 
     def write(self, vals):
         res = super(ResPartner, self).write(vals)
-        # Trigger subscription if:
-        # 1. klaviyo_marketing_opt_in or x_marketing_opt_in is being set to True
-        # 2. Or, email is being changed/set AND either is True
-        opt_in_changed = (
-            ('klaviyo_marketing_opt_in' in vals and vals.get('klaviyo_marketing_opt_in')) or
-            ('x_marketing_opt_in' in vals and vals.get('x_marketing_opt_in'))
-        )
-        email_changed = 'email' in vals and self.filtered(lambda p: p.klaviyo_marketing_opt_in or p.x_marketing_opt_in)
-        if opt_in_changed or email_changed:
-            _logger.info(
-                "Klaviyo: write() triggered subscription flow. "
-                "opt_in_changed=%s, email_changed=%s, partner_ids=%s",
-                opt_in_changed, bool(email_changed), self.ids
-            )
+        # Trigger subscription or unsubscription if opt-in field is explicitly modified
+        opt_in_in_vals = 'klaviyo_marketing_opt_in' in vals or 'x_marketing_opt_in' in vals
+        email_changed = 'email' in vals
+
+        if opt_in_in_vals or email_changed:
             for partner in self:
-                if (partner.klaviyo_marketing_opt_in or partner.x_marketing_opt_in) and partner.email:
-                    partner._subscribe_to_klaviyo()
-                else:
+                is_opted_in = partner.klaviyo_marketing_opt_in or partner.x_marketing_opt_in
+                if is_opted_in and partner.email:
                     _logger.info(
-                        "Klaviyo: Skipping partner %s (id=%s) — opt_in=%s, email=%s",
-                        partner.name, partner.id, partner.klaviyo_marketing_opt_in or partner.x_marketing_opt_in, partner.email
+                        "Klaviyo: write() triggered subscription flow for %s (id=%s)",
+                        partner.email, partner.id
                     )
+                    partner._subscribe_to_klaviyo()
+                elif not is_opted_in and partner.email:
+                    # Only unsubscribe if the opt-in field was changed to False
+                    opt_in_changed_to_false = (
+                        ('klaviyo_marketing_opt_in' in vals and not vals.get('klaviyo_marketing_opt_in')) or
+                        ('x_marketing_opt_in' in vals and not vals.get('x_marketing_opt_in'))
+                    )
+                    if opt_in_changed_to_false:
+                        _logger.info(
+                            "Klaviyo: write() triggered unsubscription flow for %s (id=%s)",
+                            partner.email, partner.id
+                        )
+                        partner._unsubscribe_from_klaviyo()
         return res
 
     @api.model_create_multi
@@ -220,15 +223,94 @@ class ResPartner(models.Model):
 
         _logger.info("Klaviyo Subscription: === END === for %s", self.email)
 
+    def _unsubscribe_from_klaviyo(self):
+        """Unsubscribe the partner's email from Klaviyo immediately using the bulk delete job endpoint.
+        """
+        _logger.info("Klaviyo Unsubscribe: === START === Attempting to unsubscribe %s (partner ID: %s)", self.email, self.id)
+
+        # We need the API key
+        is_test, api_key = self.env['res.config.settings'].get_klaviyo_api_key()
+        _logger.info("Klaviyo Unsubscribe: is_test=%s, api_key_present=%s", is_test, bool(api_key))
+        if not api_key:
+            _logger.warning("Klaviyo Unsubscribe: Private API Key is missing. Aborting.")
+            return
+
+        # Resolve list_id dynamically (without creating any new list)
+        list_id = self._get_klaviyo_list_id(api_key)
+        if not list_id:
+            _logger.warning("Klaviyo Unsubscribe: Unable to resolve any list ID. Aborting.")
+            return
+
+        _logger.info("Klaviyo Unsubscribe: Using list ID '%s' for %s", list_id, self.email)
+
+        # Prepare payload for bulk delete job
+        payload = {
+            "data": {
+                "type": "profile-subscription-bulk-delete-job",
+                "attributes": {
+                    "profiles": {
+                        "data": [
+                            {
+                                "type": "profile",
+                                "attributes": {
+                                    "email": self.email
+                                }
+                            }
+                        ]
+                    }
+                },
+                "relationships": {
+                    "list": {
+                        "data": {
+                            "type": "list",
+                            "id": list_id
+                        }
+                    }
+                }
+            }
+        }
+
+        url = 'https://a.klaviyo.com/api/profile-subscription-bulk-delete-jobs/'
+        _logger.info("Klaviyo Unsubscribe: Sending payload to %s", url)
+        _logger.debug("Klaviyo Unsubscribe: Full payload: %s", payload)
+
+        headers = KLAVIYO_HEADERS.copy()
+        headers["Authorization"] = headers["Authorization"] % api_key
+
+        try:
+            response = requests.post(
+                url=url,
+                json=payload,
+                headers=headers,
+                timeout=10
+            )
+            _logger.info(
+                "Klaviyo Unsubscribe: Response — status=%s, body=%s",
+                response.status_code, response.text[:500] if response.text else '(empty)'
+            )
+            if response.status_code not in (200, 202):
+                _logger.error(
+                    "Klaviyo Unsubscribe FAILED for %s. Code: %s, Full Response: %s",
+                    self.email, response.status_code, response.text
+                )
+            else:
+                _logger.info("Klaviyo Unsubscribe SUCCESS for %s (status: %s)", self.email, response.status_code)
+        except Exception as e:
+            _logger.exception("Klaviyo Unsubscribe EXCEPTION for %s", self.email)
+
+        _logger.info("Klaviyo Unsubscribe: === END === for %s", self.email)
+
     def action_test_klaviyo_subscription(self):
-        """Button action: test the Klaviyo subscription and show results in the UI."""
+        """Button action: test the Klaviyo subscription or unsubscription and show results in the UI."""
         self.ensure_one()
+        is_opted_in = self.klaviyo_marketing_opt_in or self.x_marketing_opt_in
+        
         log_lines = []
-        log_lines.append(f"=== Klaviyo Subscription Test ===")
+        log_lines.append(f"=== Klaviyo {'Subscription' if is_opted_in else 'Unsubscription'} Test ===")
         log_lines.append(f"Timestamp: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}")
         log_lines.append(f"Partner: {self.name} (id={self.id})")
         log_lines.append(f"Email: {self.email}")
-        log_lines.append(f"Opt-In: {self.klaviyo_marketing_opt_in}")
+        log_lines.append(f"Opt-In: {is_opted_in}")
         log_lines.append("")
 
         if not self.email:
@@ -286,57 +368,85 @@ class ResPartner(models.Model):
             return self._klaviyo_notify('No Klaviyo list found', 'danger')
 
         # Step 4: Build & Send Payload
-        consented_at = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-        # Only email + subscriptions are valid for this endpoint
-        payload = {
-            "data": {
-                "type": "profile-subscription-bulk-create-job",
-                "attributes": {
-                    "historical_import": True,
-                    "profiles": {
-                        "data": [
-                            {
-                                "type": "profile",
-                                "attributes": {
-                                    "email": self.email,
-                                    "subscriptions": {
-                                        "email": {
-                                            "marketing": {
-                                                "consent": "SUBSCRIBED",
-                                                "consented_at": consented_at
+        if is_opted_in:
+            consented_at = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            payload = {
+                "data": {
+                    "type": "profile-subscription-bulk-create-job",
+                    "attributes": {
+                        "historical_import": True,
+                        "profiles": {
+                            "data": [
+                                {
+                                    "type": "profile",
+                                    "attributes": {
+                                        "email": self.email,
+                                        "subscriptions": {
+                                            "email": {
+                                                "marketing": {
+                                                    "consent": "SUBSCRIBED",
+                                                    "consented_at": consented_at
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        ]
+                            ]
+                        },
+                        "custom_source": "Odoo Marketing Consent Checkbox"
                     },
-                    "custom_source": "Odoo Marketing Consent Checkbox"
-                },
-                "relationships": {
-                    "list": {
-                        "data": {
-                            "type": "list",
-                            "id": list_id
+                    "relationships": {
+                        "list": {
+                            "data": {
+                                "type": "list",
+                                "id": list_id
+                            }
                         }
                     }
                 }
             }
-        }
+            url = KLAVIYO_SUBSCRIBE_URL
+        else:
+            payload = {
+                "data": {
+                    "type": "profile-subscription-bulk-delete-job",
+                    "attributes": {
+                        "profiles": {
+                            "data": [
+                                {
+                                    "type": "profile",
+                                    "attributes": {
+                                        "email": self.email
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "relationships": {
+                        "list": {
+                            "data": {
+                                "type": "list",
+                                "id": list_id
+                            }
+                        }
+                    }
+                }
+            }
+            url = 'https://a.klaviyo.com/api/profile-subscription-bulk-delete-jobs/'
 
         log_lines.append(f"Step 4 - Payload built:")
         log_lines.append(f"  email={self.email}")
-        log_lines.append(f"  consented_at={consented_at}")
+        if is_opted_in:
+            log_lines.append(f"  consented_at={consented_at}")
+            log_lines.append(f"  historical_import=True")
         log_lines.append(f"  list_id={list_id}")
-        log_lines.append(f"  historical_import=True")
-        log_lines.append(f"  URL: {KLAVIYO_SUBSCRIBE_URL}")
+        log_lines.append(f"  URL: {url}")
         log_lines.append(f"  Revision: {headers.get('revision')}")
         log_lines.append("")
 
         try:
             response = requests.post(
-                url=KLAVIYO_SUBSCRIBE_URL,
+                url=url,
                 json=payload,
                 headers=headers,
                 timeout=10
@@ -347,7 +457,7 @@ class ResPartner(models.Model):
 
             if response.status_code in (200, 202):
                 log_lines.append("")
-                log_lines.append("✅ SUCCESS — Subscription request accepted by Klaviyo.")
+                log_lines.append(f"✅ SUCCESS — {'Subscription' if is_opted_in else 'Unsubscription'} request accepted by Klaviyo.")
                 self.klaviyo_subscription_log = '\n'.join(log_lines)
                 return self._klaviyo_notify(f'Success! Status {response.status_code}. Check Klaviyo in ~30 seconds.', 'success')
             else:
