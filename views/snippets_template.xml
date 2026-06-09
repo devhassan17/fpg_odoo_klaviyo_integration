@@ -85,15 +85,15 @@
                     }, true);
                 </script>
             </t>
-            <t t-set="klaviyo_order" t-value="request.website.sale_get_order() if request.website and hasattr(request.website, 'sale_get_order') else False"/>
-            <t t-set="klaviyo_email" t-value="request.env.user.email or (klaviyo_order and klaviyo_order.partner_id and klaviyo_order.partner_id.email and klaviyo_order.partner_id.email != request.website.user_id.sudo().partner_id.email and klaviyo_order.partner_id.email)"/>
+            <t t-set="klaviyo_partner" t-value="website._get_klaviyo_checkout_partner()"/>
+            <t t-set="klaviyo_email" t-value="request.env.user.email or (klaviyo_partner and klaviyo_partner.email)"/>
             <t t-if="klaviyo_email and website and website.klaviyo_public_key and not editable">
                 <script>
                     window._learnq = window._learnq || [];
                     window._learnq.push(['identify', {
                         "email": "<t t-esc="klaviyo_email"/>",
-                        "$first_name": "<t t-esc="request.env.user.name or (klaviyo_order and klaviyo_order.partner_id and klaviyo_order.partner_id.name) or ''"/>",
-                        "$phone_number": "<t t-esc="request.env.user.phone or request.env.user.mobile or (klaviyo_order and klaviyo_order.partner_id and (klaviyo_order.partner_id.phone or klaviyo_order.partner_id.mobile)) or ''"/>",
+                        "$first_name": "<t t-esc="request.env.user.name or (klaviyo_partner and klaviyo_partner.name) or ''"/>",
+                        "$phone_number": "<t t-esc="request.env.user.phone or request.env.user.mobile or (klaviyo_partner and (klaviyo_partner.phone or klaviyo_partner.mobile)) or ''"/>",
                     }]);
                 </script>
             </t>
