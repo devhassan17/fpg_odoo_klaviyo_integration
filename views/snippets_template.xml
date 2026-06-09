@@ -85,8 +85,8 @@
                     }, true);
                 </script>
             </t>
-            <t t-set="klaviyo_order" t-value="website.sale_get_order()"/>
-            <t t-set="klaviyo_email" t-value="request.env.user.email or (klaviyo_order and klaviyo_order.partner_id and klaviyo_order.partner_id.email and klaviyo_order.partner_id.email != website.user_id.sudo().partner_id.email and klaviyo_order.partner_id.email)"/>
+            <t t-set="klaviyo_order" t-value="request.website.sale_get_order() if request.website and hasattr(request.website, 'sale_get_order') else False"/>
+            <t t-set="klaviyo_email" t-value="request.env.user.email or (klaviyo_order and klaviyo_order.partner_id and klaviyo_order.partner_id.email and klaviyo_order.partner_id.email != request.website.user_id.sudo().partner_id.email and klaviyo_order.partner_id.email)"/>
             <t t-if="klaviyo_email and website and website.klaviyo_public_key and not editable">
                 <script>
                     window._learnq = window._learnq || [];
