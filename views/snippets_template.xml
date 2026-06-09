@@ -104,14 +104,6 @@
     </template>
 
     <template id="product" inherit_id="website_sale.product" name="Klaviyo, product tracking" priority="220">
-        <xpath expr="//a[@id='add_to_cart']" position="attributes">
-            <attribute name="t-att-data-product-name">combination_info['display_name']</attribute>
-            <attribute name="t-att-data-product-id">combination_info['product_id']</attribute>
-            <attribute name="t-att-data-product-price">combination_info['price']</attribute>
-            <attribute name="t-att-data-product-sku">product_variant.default_code</attribute>
-            <attribute name="t-att-data-product-img">combination_info['image_url']</attribute>
-            <attribute name="t-att-data-product-url">combination_info['url']</attribute>
-        </xpath>
         <xpath expr="//div[@id='wrap']" position="before">
             <t t-if="website and website.klaviyo_public_key and not editable">
                 <script>
