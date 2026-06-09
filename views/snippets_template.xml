@@ -6,16 +6,9 @@
                 &lt;!-- Klaviyo Initialization --&gt;
                 <script async="" type='text/javascript' t-attf-src='https://static.klaviyo.com/onsite/js/{{website.klaviyo_public_key}}/klaviyo.js'/>
                 <script>
-                    !function(){if(!window.klaviyo){window._klOnsite=window._klOnsite||[];try{window.klaviyo=new Proxy({},{get:function(n,i){return"push"===i?function(){var n;(n=window._klOnsite).push.apply(n,arguments)}:function(){for(var n=arguments.length,o=new Array(n),w=0;w&lt;n;w++)o[w]=arguments[w];var t="function"==typeof o[o.length-1]?o.pop():void 0,e=new Promise((function(n){window._klOnsite.push([i].concat(o,[function(i){t&amp;&amp;t(i),n(i)}]))}));return e}}})}catch(n){window.klaviyo=window.klaviyo||[],window.klaviyo.push=function(){var n;(n=window._klOnsite).push.apply(n,arguments)}}}}();
+                    window._learnq = window._learnq || [];
                 </script>
                 &lt;!-- End Klaviyo Initialization --&gt;
-            </t>
-            <t t-else="">
-                <script>
-                    klaviyo = function() {
-                        console.log("Klaviyo events are not triggered for the website administrator");
-                    }
-                </script>
             </t>
         </xpath>
 
@@ -41,7 +34,7 @@
                                 productId = productIdInput ? productIdInput.value : null;
                             }
                             if (!productName) {
-                                var nameElement = container.querySelector('h1[itemprop="name"]') || container.querySelector('.o_wsale_products_item_title a') || container.querySelector('.product_name');
+                                var nameElement = document.querySelector('h1') || container.querySelector('.o_wsale_products_item_title a') || container.querySelector('.product_name');
                                 productName = nameElement ? nameElement.textContent.trim() : 'Product';
                             }
                             if (!price) {
@@ -66,7 +59,8 @@
 
                             if (productId) {
                                 console.log("Klaviyo: Added to Cart event pushed (Global)", productName, productId, price, qty, productUrl, imageUrl);
-                                klaviyo.track("Added to Cart", {
+                                window._learnq = window._learnq || [];
+                                window._learnq.push(["track", "Added to Cart", {
                                     "AddedItemProductName": productName,
                                     "AddedItemProductID": productId,
                                     "AddedItemSKU": sku,
@@ -85,7 +79,7 @@
                                         "ProductURL": productUrl,
                                         "ImageURL": imageUrl
                                     }]
-                                });
+                                }]);
                             }
                         }
                     }, true);
@@ -93,11 +87,12 @@
             </t>
             <t t-if="request.env.user.email and website and website.klaviyo_public_key and not editable">
                 <script>
-                    klaviyo.identify({
+                    window._learnq = window._learnq || [];
+                    window._learnq.push(['identify', {
                         "email": "<t t-esc="request.env.user.email"/>",
                         "$first_name": "<t t-esc="request.env.user.name"/>",
                         "$phone_number": "<t t-esc="request.env.user.phone or request.env.user.mobile or ''"/>",
-                    });
+                    }]);
                 </script>
             </t>
         </xpath>
@@ -107,15 +102,16 @@
         <xpath expr="//div[@id='wrap']" position="before">
             <t t-if="website and website.klaviyo_public_key and not editable">
                 <script>
-                    klaviyo.track("Viewed Product", {
+                    window._learnq = window._learnq || [];
+                    window._learnq.push(["track", "Viewed Product", {
                         "ProductName": "<t t-esc="combination_info['display_name']"/>",
                         "ProductID": <t t-esc="combination_info['product_id']"/>,
                         "SKU": "<t t-esc="product_variant.default_code"/>",
                         "Price": <t t-esc="combination_info['price']"/>,
                         "URL": "<t t-esc="combination_info['url']"/>",
                         "ImageURL": "<t t-esc="combination_info['image_url']"/>",
-                    });
-                    klaviyo.trackViewedItem({
+                    }]);
+                    window._learnq.push(["trackViewedItem", {
                         "Title": "<t t-esc="combination_info['display_name']"/>",
                         "ItemId": <t t-esc="combination_info['product_id']"/>,
                         "URL": "<t t-esc="combination_info['url']"/>",
@@ -123,7 +119,7 @@
                         "Metadata": {
                             "Price": <t t-esc="combination_info['price']"/>,
                         }
-                    });
+                    }]);
                 </script>
             </t>
         </xpath>
