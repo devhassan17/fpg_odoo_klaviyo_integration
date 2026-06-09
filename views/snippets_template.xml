@@ -85,7 +85,7 @@
                     }, true);
                 </script>
             </t>
-            <t t-set="klaviyo_partner" t-value="website._get_klaviyo_checkout_partner()"/>
+            <t t-set="klaviyo_partner" t-value="website and website._get_klaviyo_checkout_partner()"/>
             <t t-set="klaviyo_email" t-value="request.env.user.email or (klaviyo_partner and klaviyo_partner.email)"/>
             <t t-if="klaviyo_email and website and website.klaviyo_public_key and not editable">
                 <script>
