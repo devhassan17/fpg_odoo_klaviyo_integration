@@ -85,13 +85,15 @@
                     }, true);
                 </script>
             </t>
-            <t t-if="request.env.user.email and website and website.klaviyo_public_key and not editable">
+            <t t-set="klaviyo_order" t-value="website.sale_get_order()"/>
+            <t t-set="klaviyo_email" t-value="request.env.user.email or (klaviyo_order and klaviyo_order.partner_id and klaviyo_order.partner_id.email and klaviyo_order.partner_id.email != website.user_id.sudo().partner_id.email and klaviyo_order.partner_id.email)"/>
+            <t t-if="klaviyo_email and website and website.klaviyo_public_key and not editable">
                 <script>
                     window._learnq = window._learnq || [];
                     window._learnq.push(['identify', {
-                        "email": "<t t-esc="request.env.user.email"/>",
-                        "$first_name": "<t t-esc="request.env.user.name"/>",
-                        "$phone_number": "<t t-esc="request.env.user.phone or request.env.user.mobile or ''"/>",
+                        "email": "<t t-esc="klaviyo_email"/>",
+                        "$first_name": "<t t-esc="request.env.user.name or (klaviyo_order and klaviyo_order.partner_id and klaviyo_order.partner_id.name) or ''"/>",
+                        "$phone_number": "<t t-esc="request.env.user.phone or request.env.user.mobile or (klaviyo_order and klaviyo_order.partner_id and (klaviyo_order.partner_id.phone or klaviyo_order.partner_id.mobile)) or ''"/>",
                     }]);
                 </script>
             </t>
