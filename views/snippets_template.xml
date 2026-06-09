@@ -20,6 +20,77 @@
         </xpath>
 
         <xpath expr="//head[1]" position="inside">
+            <t t-if="website and website.klaviyo_public_key and not editable">
+                <script>
+                    document.addEventListener('click', function(e) {
+                        var btn = e.target.closest('#add_to_cart, .js_check_product a.a-submit, .js_add_cart, [action*="/shop/cart/update"] .a-submit');
+                        if (btn) {
+                            var container = btn.closest('form') || btn.closest('.oe_product_cart') || btn.closest('.js_product') || document;
+                            
+                            // Try to get values from data- attributes on the button first
+                            var productName = btn.getAttribute('data-product-name');
+                            var productId = btn.getAttribute('data-product-id');
+                            var price = btn.getAttribute('data-product-price');
+                            var sku = btn.getAttribute('data-product-sku') || '';
+                            var imageUrl = btn.getAttribute('data-product-img') || '';
+                            var productUrl = btn.getAttribute('data-product-url') || window.location.href;
+                            
+                            // Fallbacks from DOM scraping
+                            if (!productId) {
+                                var productIdInput = container.querySelector('input[name="product_id"]');
+                                productId = productIdInput ? productIdInput.value : null;
+                            }
+                            if (!productName) {
+                                var nameElement = container.querySelector('h1[itemprop="name"]') || container.querySelector('.o_wsale_products_item_title a') || container.querySelector('.product_name');
+                                productName = nameElement ? nameElement.textContent.trim() : 'Product';
+                            }
+                            if (!price) {
+                                var priceElement = container.querySelector('.oe_price .oe_currency_value') || container.querySelector('.product_price .oe_currency_value');
+                                price = priceElement ? priceElement.textContent : '0';
+                            }
+                            if (!imageUrl) {
+                                var imgElement = container.querySelector('img.product_detail_img') || container.querySelector('img.o_wsale_product_grid_img') || container.querySelector('img');
+                                imageUrl = imgElement ? imgElement.src : '';
+                            }
+                            if (!productUrl) {
+                                var urlLink = container.querySelector('.o_wsale_products_item_title a') || container.querySelector('a[itemprop="url"]');
+                                if (urlLink) {
+                                    productUrl = urlLink.href;
+                                }
+                            }
+
+                            productId = productId ? parseInt(productId, 10) : null;
+                            price = price ? parseFloat(price.toString().replace(/[^0-9.]/g, '')) : 0.0;
+                            var qtyInput = container.querySelector('input[name="add_qty"]');
+                            var qty = qtyInput ? parseInt(qtyInput.value, 10) : 1;
+
+                            if (productId) {
+                                console.log("Klaviyo: Added to Cart event pushed (Global)", productName, productId, price, qty, productUrl, imageUrl);
+                                klaviyo.push(["track", "Added to Cart", {
+                                    "AddedItemProductName": productName,
+                                    "AddedItemProductID": productId,
+                                    "AddedItemSKU": sku,
+                                    "AddedItemPrice": price,
+                                    "AddedItemQuantity": qty,
+                                    "AddedItemURL": productUrl,
+                                    "AddedItemImageURL": imageUrl,
+                                    "ItemNames": [productName],
+                                    "Items": [{
+                                        "ProductID": productId,
+                                        "SKU": sku,
+                                        "ProductName": productName,
+                                        "Quantity": qty,
+                                        "ItemPrice": price,
+                                        "RowTotal": price * qty,
+                                        "ProductURL": productUrl,
+                                        "ImageURL": imageUrl
+                                    }]
+                                }]);
+                            }
+                        }
+                    }, true);
+                </script>
+            </t>
             <t t-if="request.env.user.email and website and website.klaviyo_public_key and not editable">
                 <script>
                     klaviyo.identify({
@@ -32,9 +103,15 @@
         </xpath>
     </template>
 
-
-
     <template id="product" inherit_id="website_sale.product" name="Klaviyo, product tracking" priority="220">
+        <xpath expr="//a[@id='add_to_cart']" position="attributes">
+            <attribute name="t-att-data-product-name">combination_info['display_name']</attribute>
+            <attribute name="t-att-data-product-id">combination_info['product_id']</attribute>
+            <attribute name="t-att-data-product-price">combination_info['price']</attribute>
+            <attribute name="t-att-data-product-sku">product_variant.default_code</attribute>
+            <attribute name="t-att-data-product-img">combination_info['image_url']</attribute>
+            <attribute name="t-att-data-product-url">combination_info['url']</attribute>
+        </xpath>
         <xpath expr="//div[@id='wrap']" position="before">
             <t t-if="website and website.klaviyo_public_key and not editable">
                 <script>
@@ -55,42 +132,6 @@
                             "Price": <t t-esc="combination_info['price']"/>,
                         }
                     }]);
-
-                    document.addEventListener('click', function(e) {
-                        var btn = e.target.closest('#add_to_cart, .js_check_product a.a-submit, .js_add_cart');
-                        if (btn) {
-                            var productIdInput = document.querySelector('input[name="product_id"]');
-                            var productId = productIdInput ? parseInt(productIdInput.value, 10) : <t t-esc="combination_info['product_id']"/>;
-                            var qtyInput = document.querySelector('input[name="add_qty"]');
-                            var qty = qtyInput ? parseInt(qtyInput.value, 10) : 1;
-                            var priceSpan = document.querySelector('.oe_price .oe_currency_value');
-                            var price = priceSpan ? parseFloat(priceSpan.textContent.replace(/[^0-9.]/g, '')) : <t t-esc="combination_info['price']"/>;
-                            var productName = document.querySelector('h1[itemprop="name"]')?.textContent.trim() || "<t t-esc="combination_info['display_name']"/>";
-
-                            console.log("Klaviyo: Added to Cart event pushed", productName, productId, price, qty);
-
-                            klaviyo.push(["track", "Added to Cart", {
-                                "AddedItemProductName": productName,
-                                "AddedItemProductID": productId,
-                                "AddedItemSKU": "<t t-esc="product_variant.default_code"/>",
-                                "AddedItemPrice": price,
-                                "AddedItemQuantity": qty,
-                                "AddedItemURL": window.location.href,
-                                "AddedItemImageURL": "<t t-esc="combination_info['image_url']"/>",
-                                "ItemNames": [productName],
-                                "Items": [{
-                                    "ProductID": productId,
-                                    "SKU": "<t t-esc="product_variant.default_code"/>",
-                                    "ProductName": productName,
-                                    "Quantity": qty,
-                                    "ItemPrice": price,
-                                    "RowTotal": price * qty,
-                                    "ProductURL": window.location.href,
-                                    "ImageURL": "<t t-esc="combination_info['image_url']"/>"
-                                }]
-                            }]);
-                        }
-                    }, true);
                 </script>
             </t>
         </xpath>
