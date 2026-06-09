@@ -66,7 +66,7 @@
 
                             if (productId) {
                                 console.log("Klaviyo: Added to Cart event pushed (Global)", productName, productId, price, qty, productUrl, imageUrl);
-                                klaviyo.push(["track", "Added to Cart", {
+                                klaviyo.track("Added to Cart", {
                                     "AddedItemProductName": productName,
                                     "AddedItemProductID": productId,
                                     "AddedItemSKU": sku,
@@ -85,7 +85,7 @@
                                         "ProductURL": productUrl,
                                         "ImageURL": imageUrl
                                     }]
-                                }]);
+                                });
                             }
                         }
                     }, true);
@@ -115,15 +115,15 @@
         <xpath expr="//div[@id='wrap']" position="before">
             <t t-if="website and website.klaviyo_public_key and not editable">
                 <script>
-                    klaviyo.push(["track", "Viewed Product", {
+                    klaviyo.track("Viewed Product", {
                         "ProductName": "<t t-esc="combination_info['display_name']"/>",
                         "ProductID": <t t-esc="combination_info['product_id']"/>,
                         "SKU": "<t t-esc="product_variant.default_code"/>",
                         "Price": <t t-esc="combination_info['price']"/>,
                         "URL": "<t t-esc="combination_info['url']"/>",
                         "ImageURL": "<t t-esc="combination_info['image_url']"/>",
-                    }]);
-                    klaviyo.push(["trackViewedItem", {
+                    });
+                    klaviyo.trackViewedItem({
                         "Title": "<t t-esc="combination_info['display_name']"/>",
                         "ItemId": <t t-esc="combination_info['product_id']"/>,
                         "URL": "<t t-esc="combination_info['url']"/>",
@@ -131,7 +131,7 @@
                         "Metadata": {
                             "Price": <t t-esc="combination_info['price']"/>,
                         }
-                    }]);
+                    });
                 </script>
             </t>
         </xpath>
