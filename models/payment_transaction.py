@@ -11,6 +11,10 @@ class PaymentTransaction(models.Model):
         """
         res = super()._set_done(*args, **kwargs)
 
+        # Check company filter
+        if not self.env['res.config.settings'].check_klaviyo_company(self.company_id):
+            return res
+
         # Get Sale Order by Reference
         # Get the Order Name from these cases: S00300-1, S00300-2
         idx = self.reference.find('-')

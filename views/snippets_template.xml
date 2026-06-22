@@ -2,7 +2,7 @@
 <odoo>
     <template id="website_layout" inherit_id="website.layout" name="Klaviyo Snippet" priority="220">
         <xpath expr="//meta[@name='generator']" position="before">
-            <t t-if="website and website.klaviyo_public_key and not editable">
+            <t t-if="website and website.is_klaviyo_enabled() and not editable">
                 &lt;!-- Klaviyo Initialization --&gt;
                 <script async="" type='text/javascript' t-attf-src='https://static.klaviyo.com/onsite/js/{{website.klaviyo_public_key}}/klaviyo.js'/>
                 <script>
@@ -13,7 +13,7 @@
         </xpath>
 
         <xpath expr="//head[1]" position="inside">
-            <t t-if="website and website.klaviyo_public_key and not editable">
+            <t t-if="website and website.is_klaviyo_enabled() and not editable">
                 <script>
                     document.addEventListener('click', function(e) {
                         var btn = e.target.closest('#add_to_cart, .js_check_product a.a-submit, .js_add_cart, [action*="/shop/cart/update"] .a-submit');
@@ -87,7 +87,7 @@
             </t>
             <t t-set="klaviyo_partner" t-value="website and website._get_klaviyo_checkout_partner()"/>
             <t t-set="klaviyo_email" t-value="request.env.user.email or (klaviyo_partner and klaviyo_partner.email)"/>
-            <t t-if="klaviyo_email and website and website.klaviyo_public_key and not editable">
+            <t t-if="klaviyo_email and website and website.is_klaviyo_enabled() and not editable">
                 <script>
                     window._learnq = window._learnq || [];
                     window._learnq.push(['identify', {
@@ -102,7 +102,7 @@
 
     <template id="product" inherit_id="website_sale.product" name="Klaviyo, product tracking" priority="220">
         <xpath expr="//div[@id='wrap']" position="before">
-            <t t-if="website and website.klaviyo_public_key and not editable">
+            <t t-if="website and website.is_klaviyo_enabled() and not editable">
                 <script>
                     window._learnq = window._learnq || [];
                     window._learnq.push(["track", "Viewed Product", {

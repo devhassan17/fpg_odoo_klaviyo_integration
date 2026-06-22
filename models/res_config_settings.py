@@ -21,6 +21,23 @@ class ResConfigSettings(models.TransientModel):
         related='website_id.klaviyo_public_key',
         readonly=False
     )
+    klaviyo_company_id = fields.Many2one(
+        'res.company',
+        string='Klaviyo Company',
+        config_parameter='fpg_odoo_klaviyo_integration.klaviyo_company_id',
+        help='Select the company for which this Klaviyo integration is active. Leave empty to allow all companies.'
+    )
+
+    @api.model
+    def check_klaviyo_company(self, company=False):
+        """Check if Klaviyo integration is active for the given company.
+        If no company is configured in settings, it is active for all.
+        """
+        configured_company_id = self.env['ir.config_parameter'].sudo().get_param('fpg_odoo_klaviyo_integration.klaviyo_company_id')
+        if not configured_company_id:
+            return True
+        check_company = company or self.env.company
+        return check_company and check_company.id == int(configured_company_id)
 
     @api.onchange('has_klaviyo')
     def _onchange_has_klaviyo(self):

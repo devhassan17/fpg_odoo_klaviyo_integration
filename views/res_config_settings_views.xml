@@ -34,6 +34,11 @@
         <field name="arch" type="xml">
             <app name="fpg_odoo_klaviyo_key" position="inside">
                 <block title="Integration" name="odoo_klaviyo_event_setting_block">
+                    <setting string="Company Filter" id="klaviyo_company_filter_settings" help="Select the company for which this Klaviyo integration is active. Leave empty to allow all companies.">
+                        <div class="mt8">
+                            <field name="klaviyo_company_id" options="{'no_create': True}"/>
+                        </div>
+                    </setting>
                     <setting string="Klaviyo Event Logs" id="odoo_klaviyo_event_settings" help="Check the logs to verify that Kaviyo events are being sent correctly">
                         <div class="mt8">
                             <button name="%(fpg_odoo_klaviyo_integration.klaviyo_event_queue_form_action)d" 

@@ -80,6 +80,25 @@ class KlaviyoEventQueue(models.Model):
         for record in self:
             record.partner_id = record.transaction_id.partner_id or record.order_id.partner_id
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        filtered_vals_list = []
+        for vals in vals_list:
+            company = False
+            if 'order_id' in vals and vals['order_id']:
+                order = self.env['sale.order'].browse(vals['order_id'])
+                company = order.company_id
+            elif 'transaction_id' in vals and vals['transaction_id']:
+                tx = self.env['payment.transaction'].browse(vals['transaction_id'])
+                company = tx.company_id
+            
+            if self.env['res.config.settings'].check_klaviyo_company(company):
+                filtered_vals_list.append(vals)
+        
+        if not filtered_vals_list:
+            return self.env['fpg.odoo.klaviyo.integration.event.queue']
+        return super(KlaviyoEventQueue, self).create(filtered_vals_list)
+
     def send_event(self):
         """Send Klaviyo Event to achieve Customer Lifetime Value (CLV)
         """
@@ -89,6 +108,9 @@ class KlaviyoEventQueue(models.Model):
             return
         # Send events
         for event in self.search([('state', '=', 'waiting')]):
+            event_company = event.order_id.company_id or (event.transaction_id.company_id if event.transaction_id else False)
+            if not self.env['res.config.settings'].check_klaviyo_company(event_company):
+                continue
             payload = self._build_payload(event=event)
             response = requests.post(
                 url=KLAVIYO_URL,

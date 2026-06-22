@@ -133,6 +133,11 @@ class ResPartner(models.Model):
         """Subscribe the partner's email to Klaviyo with email consent immediately.
         Uses historical_import=True to bypass double opt-in confirmation.
         """
+        # Check company filter
+        if not self.env['res.config.settings'].check_klaviyo_company(self.company_id):
+            _logger.info("Klaviyo Subscription: Partner %s (id=%s) company does not match configured Klaviyo company. Skipping subscription.", self.name, self.id)
+            return
+
         _logger.info("Klaviyo Subscription: === START === Attempting to subscribe %s (partner ID: %s)", self.email, self.id)
 
         # We need the API key
@@ -226,6 +231,11 @@ class ResPartner(models.Model):
     def _unsubscribe_from_klaviyo(self):
         """Unsubscribe the partner's email from Klaviyo immediately using the bulk delete job endpoint.
         """
+        # Check company filter
+        if not self.env['res.config.settings'].check_klaviyo_company(self.company_id):
+            _logger.info("Klaviyo Unsubscribe: Partner %s (id=%s) company does not match configured Klaviyo company. Skipping unsubscription.", self.name, self.id)
+            return
+
         _logger.info("Klaviyo Unsubscribe: === START === Attempting to unsubscribe %s (partner ID: %s)", self.email, self.id)
 
         # We need the API key
@@ -312,6 +322,12 @@ class ResPartner(models.Model):
         log_lines.append(f"Email: {self.email}")
         log_lines.append(f"Opt-In: {is_opted_in}")
         log_lines.append("")
+
+        # Check company filter
+        if not self.env['res.config.settings'].check_klaviyo_company(self.company_id):
+            log_lines.append("❌ ABORTED: Partner company does not match configured Klaviyo company.")
+            self.klaviyo_subscription_log = '\n'.join(log_lines)
+            return self._klaviyo_notify('Partner company does not match Klaviyo company filter', 'danger')
 
         if not self.email:
             log_lines.append("❌ ABORTED: No email address on this contact.")
