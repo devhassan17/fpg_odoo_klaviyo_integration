@@ -9,6 +9,7 @@ from odoo import api, fields, models
 _logger = logging.getLogger(__name__)
 
 KLAVIYO_SUBSCRIBE_URL = 'https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs/'
+KLAVIYO_PROFILE_IMPORT_URL = 'https://a.klaviyo.com/api/profile-import/'
 KLAVIYO_HEADERS = {
     "Accept": "application/vnd.api+json",
     "revision": "2025-01-15",
@@ -43,6 +44,91 @@ class ResPartner(models.Model):
     def _inverse_klaviyo_marketing_opt_in(self):
         for partner in self:
             partner.x_marketing_opt_in = partner.klaviyo_marketing_opt_in
+
+    @api.model
+    def _klaviyo_import_profile(self, email, profile_data=None):
+        """Create or update a Klaviyo profile using the Profile Import API.
+
+        This uses ``POST /api/profile-import/`` which is idempotent by email:
+        - Returns 201 if a new profile was created.
+        - Returns 200 if an existing profile was updated.
+
+        :param str email: The email address (primary identifier).
+        :param dict profile_data: Optional extra profile attributes such as
+            first_name, last_name, phone_number, location, etc.
+        :returns: Tuple ``(success: bool, detail: str)``
+        """
+        if not email or not isinstance(email, str) or '@' not in email:
+            _logger.warning("Klaviyo Profile Import: Invalid or empty email '%s'. Skipping.", email)
+            return False, 'Invalid email'
+
+        # Check company filter (use current company from request context)
+        if not self.env['res.config.settings'].check_klaviyo_company():
+            _logger.info("Klaviyo Profile Import: Company filter did not match. Skipping for %s.", email)
+            return False, 'Company filter mismatch'
+
+        # Get API key
+        is_test, api_key = self.env['res.config.settings'].get_klaviyo_api_key()
+        if not api_key:
+            _logger.warning("Klaviyo Profile Import: API Key is missing. Skipping for %s.", email)
+            return False, 'API key missing'
+
+        # Build profile attributes
+        attrs = {'email': email}
+        if profile_data and isinstance(profile_data, dict):
+            # Map supported Klaviyo profile attributes
+            field_map = {
+                'first_name': 'first_name',
+                'last_name': 'last_name',
+                'phone_number': 'phone_number',
+                'organization': 'organization',
+                'title': 'title',
+                'image': 'image',
+                'location': 'location',
+            }
+            for key, klaviyo_key in field_map.items():
+                val = profile_data.get(key)
+                if val:
+                    attrs[klaviyo_key] = val
+
+        payload = {
+            'data': {
+                'type': 'profile',
+                'attributes': attrs,
+            }
+        }
+
+        headers = KLAVIYO_HEADERS.copy()
+        headers['Authorization'] = headers['Authorization'] % api_key
+
+        _logger.info("Klaviyo Profile Import: Sending for %s (attrs keys: %s)", email, list(attrs.keys()))
+
+        try:
+            response = requests.post(
+                url=KLAVIYO_PROFILE_IMPORT_URL,
+                json=payload,
+                headers=headers,
+                timeout=10,
+            )
+            if response.status_code in (200, 201):
+                action = 'updated' if response.status_code == 200 else 'created'
+                _logger.info("Klaviyo Profile Import SUCCESS: %s profile for %s (status: %s)", action, email, response.status_code)
+                return True, action
+            else:
+                _logger.error(
+                    "Klaviyo Profile Import FAILED for %s. Code: %s, Response: %s",
+                    email, response.status_code, response.text[:500] if response.text else '(empty)',
+                )
+                return False, f'API error {response.status_code}'
+        except requests.exceptions.Timeout:
+            _logger.error("Klaviyo Profile Import TIMEOUT for %s.", email)
+            return False, 'Timeout'
+        except requests.exceptions.ConnectionError:
+            _logger.error("Klaviyo Profile Import CONNECTION ERROR for %s.", email)
+            return False, 'Connection error'
+        except Exception as e:
+            _logger.exception("Klaviyo Profile Import EXCEPTION for %s", email)
+            return False, str(e)
 
     def write(self, vals):
         res = super(ResPartner, self).write(vals)

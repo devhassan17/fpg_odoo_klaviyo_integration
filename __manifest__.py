@@ -5,7 +5,7 @@
     'description': 'Odoo eCommerce Integration with Klaviyo.',
     'author': 'FPG',
     'category': 'Marketing',
-    'version': '19.0.1.1.22',
+    'version': '19.0.1.1.23',
     'depends': [
         'website_sale',
         'fpg_odoo_klaviyo_key',
@@ -19,6 +19,11 @@
         'views/res_partner_views.xml',
         'views/snippets_template.xml',
     ],
+    'assets': {
+        'web.assets_frontend': [
+            'fpg_odoo_klaviyo_integration/static/src/js/klaviyo_checkout_capture.js',
+        ],
+    },
     'installable': True,
     'application': False,
     'license': 'LGPL-3',
@@ -28,3 +33,4 @@
     'price': 122.95,
     'currency': 'USD',
 }
+
