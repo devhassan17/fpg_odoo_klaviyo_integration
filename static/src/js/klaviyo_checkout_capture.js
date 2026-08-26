@@ -1,7 +1,6 @@
 /** @odoo-module **/
 
 import publicWidget from '@web/legacy/js/public/public_widget';
-import { jsonrpc } from '@web/core/network/rpc';
 
 /**
  * Klaviyo Checkout Email Capture
@@ -74,20 +73,27 @@ publicWidget.registry.KlaviyoCheckoutCapture = publicWidget.Widget.extend({
         this._lastCapturedEmail = email;
 
         // Collect any other fields already filled in
-        const extraData = {};
+        const params = { email: email };
         const firstName = (this.el.querySelector('#first_name, input[name="first_name"]')?.value || '').trim();
         const lastName = (this.el.querySelector('#last_name, input[name="last_name"]')?.value || '').trim();
         const phone = (this.el.querySelector('input[name="phone"]')?.value || '').trim();
 
-        if (firstName) extraData.first_name = firstName;
-        if (lastName) extraData.last_name = lastName;
-        if (phone) extraData.phone = phone;
+        if (firstName) params.first_name = firstName;
+        if (lastName) params.last_name = lastName;
+        if (phone) params.phone = phone;
 
         try {
-            // Server-side Klaviyo profile import
-            await jsonrpc('/shop/klaviyo/capture_email', {
-                email: email,
-                ...extraData,
+            // Server-side Klaviyo profile import via JSON-RPC
+            await fetch('/shop/klaviyo/capture_email', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    method: 'call',
+                    params: params,
+                }),
             });
 
             // Client-side Klaviyo identification (if klaviyo.js is loaded)
