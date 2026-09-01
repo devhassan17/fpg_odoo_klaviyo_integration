@@ -29,17 +29,25 @@ class KlaviyoCheckoutCapture(http.Controller):
         the email field on the checkout address form. It must never raise an
         exception — checkout must continue normally regardless of Klaviyo status.
 
+        Actions performed:
+        1. Create/update the Klaviyo profile (profile-import API).
+        2. Fire a "Started Checkout" event if a cart order exists.
+        3. Subscribe the email if the marketing opt-in checkbox is checked.
+
         :param str email: The customer's email address.
-        :param dict kw: Optional extra profile fields (first_name, last_name, phone).
+        :param dict kw: Optional extra fields (first_name, last_name, phone, marketing_opt_in).
         :returns: dict with 'success' key.
         """
+        result = {'success': False}
         try:
             if not email or not isinstance(email, str):
-                return {'success': False, 'reason': 'No email provided'}
+                result['reason'] = 'No email provided'
+                return result
 
             email = email.strip().lower()
             if not _EMAIL_RE.match(email):
-                return {'success': False, 'reason': 'Invalid email format'}
+                result['reason'] = 'Invalid email format'
+                return result
 
             # Build optional profile data from any extra fields already available
             profile_data = {}
@@ -54,12 +62,48 @@ class KlaviyoCheckoutCapture(http.Controller):
             if phone:
                 profile_data['phone_number'] = phone
 
-            # Call the profile import method (create or update)
+            # 1. Create/update Klaviyo profile
             success, detail = request.env['res.partner'].sudo()._klaviyo_import_profile(
                 email=email,
                 profile_data=profile_data or None,
             )
-            return {'success': success, 'detail': detail}
+            result['success'] = success
+            result['detail'] = detail
+
+            # 2. Fire "Started Checkout" event if cart order exists
+            try:
+                order = request.website.sale_get_order()
+                if order and order.order_line:
+                    event_queue_model = request.env.get('fpg.odoo.klaviyo.integration.event.queue')
+                    if event_queue_model is not None:
+                        event_queue = event_queue_model.sudo()
+                        existing_checkout = event_queue.search([
+                            ('order_id', '=', order.id),
+                            ('event_type', '=', 'started_checkout')
+                        ], limit=1)
+                        if not existing_checkout:
+                            with request.env.cr.savepoint():
+                                new_event = event_queue.create({
+                                    'order_id': order.id,
+                                    'event_type': 'started_checkout',
+                                })
+                                new_event.send_event()
+                            _logger.info("Klaviyo Checkout Capture: Started Checkout event sent for order %s", order.name)
+                        else:
+                            _logger.info("Klaviyo Checkout Capture: Started Checkout event already exists for order %s", order.name)
+            except Exception as e:
+                _logger.exception("Klaviyo Checkout Capture: Failed to send Started Checkout event: %s", e)
+
+            # 3. Subscribe email if marketing opt-in checkbox is checked
+            marketing_opt_in = kw.get('marketing_opt_in')
+            if marketing_opt_in:
+                try:
+                    sub_success, sub_detail = request.env['res.partner'].sudo()._klaviyo_subscribe_email(email)
+                    result['subscribed'] = sub_success
+                except Exception as e:
+                    _logger.exception("Klaviyo Checkout Capture: Failed to subscribe %s: %s", email, e)
+
+            return result
 
         except Exception as e:
             _logger.exception("Klaviyo Checkout Capture: Unexpected error for email '%s'", email)

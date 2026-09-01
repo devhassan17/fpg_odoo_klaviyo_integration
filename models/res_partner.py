@@ -130,6 +130,101 @@ class ResPartner(models.Model):
             _logger.exception("Klaviyo Profile Import EXCEPTION for %s", email)
             return False, str(e)
 
+    @api.model
+    def _klaviyo_subscribe_email(self, email):
+        """Subscribe an email address to Klaviyo without requiring a partner record.
+
+        This is used during early checkout capture when the marketing opt-in
+        checkbox is checked but no partner record exists yet (guest checkout).
+        Reuses the same subscription API and payload as ``_subscribe_to_klaviyo()``.
+
+        :param str email: The email address to subscribe.
+        :returns: Tuple ``(success: bool, detail: str)``
+        """
+        if not email or not isinstance(email, str) or '@' not in email:
+            _logger.warning("Klaviyo Subscribe Email: Invalid email '%s'. Skipping.", email)
+            return False, 'Invalid email'
+
+        # Check company filter
+        if not self.env['res.config.settings'].check_klaviyo_company():
+            _logger.info("Klaviyo Subscribe Email: Company filter mismatch. Skipping for %s.", email)
+            return False, 'Company filter mismatch'
+
+        # Get API key
+        is_test, api_key = self.env['res.config.settings'].get_klaviyo_api_key()
+        if not api_key:
+            _logger.warning("Klaviyo Subscribe Email: API Key is missing. Skipping for %s.", email)
+            return False, 'API key missing'
+
+        # Resolve list ID
+        list_id = self._get_klaviyo_list_id(api_key)
+        if not list_id:
+            _logger.warning("Klaviyo Subscribe Email: No list found. Skipping for %s.", email)
+            return False, 'No list found'
+
+        consented_at = (datetime.now(timezone.utc) - timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        payload = {
+            "data": {
+                "type": "profile-subscription-bulk-create-job",
+                "attributes": {
+                    "historical_import": True,
+                    "profiles": {
+                        "data": [
+                            {
+                                "type": "profile",
+                                "attributes": {
+                                    "email": email,
+                                    "subscriptions": {
+                                        "email": {
+                                            "marketing": {
+                                                "consent": "SUBSCRIBED",
+                                                "consented_at": consented_at
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "custom_source": "Odoo Checkout Marketing Opt-In"
+                },
+                "relationships": {
+                    "list": {
+                        "data": {
+                            "type": "list",
+                            "id": list_id
+                        }
+                    }
+                }
+            }
+        }
+
+        headers = KLAVIYO_HEADERS.copy()
+        headers['Authorization'] = headers['Authorization'] % api_key
+
+        _logger.info("Klaviyo Subscribe Email: Subscribing %s to list %s", email, list_id)
+
+        try:
+            response = requests.post(
+                url=KLAVIYO_SUBSCRIBE_URL,
+                json=payload,
+                headers=headers,
+                timeout=10,
+            )
+            if response.status_code in (200, 202):
+                _logger.info("Klaviyo Subscribe Email SUCCESS for %s (status: %s)", email, response.status_code)
+                return True, 'subscribed'
+            else:
+                _logger.error(
+                    "Klaviyo Subscribe Email FAILED for %s. Code: %s, Response: %s",
+                    email, response.status_code, response.text[:500] if response.text else '(empty)',
+                )
+                return False, f'API error {response.status_code}'
+        except Exception as e:
+            _logger.exception("Klaviyo Subscribe Email EXCEPTION for %s", email)
+            return False, str(e)
+
     def write(self, vals):
         res = super(ResPartner, self).write(vals)
         # Trigger subscription or unsubscription if opt-in field is explicitly modified

@@ -77,10 +77,13 @@ publicWidget.registry.KlaviyoCheckoutCapture = publicWidget.Widget.extend({
         const firstName = (this.el.querySelector('#first_name, input[name="first_name"]')?.value || '').trim();
         const lastName = (this.el.querySelector('#last_name, input[name="last_name"]')?.value || '').trim();
         const phone = (this.el.querySelector('input[name="phone"]')?.value || '').trim();
+        const marketingCheckbox = this.el.querySelector('#x_marketing_opt_in, input[name="x_marketing_opt_in"]');
+        const marketingOptIn = marketingCheckbox ? marketingCheckbox.checked : false;
 
         if (firstName) params.first_name = firstName;
         if (lastName) params.last_name = lastName;
         if (phone) params.phone = phone;
+        if (marketingOptIn) params.marketing_opt_in = true;
 
         try {
             // Server-side Klaviyo profile import via JSON-RPC
