@@ -5,7 +5,7 @@
     'description': 'Odoo eCommerce Integration with Klaviyo.',
     'author': 'FPG',
     'category': 'Marketing',
-    'version': '19.0.1.1.27',
+    'version': '19.0.1.1.28',
     'depends': [
         'website_sale',
         'fpg_odoo_klaviyo_key',

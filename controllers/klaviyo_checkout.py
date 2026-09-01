@@ -73,8 +73,11 @@ class KlaviyoCheckoutCapture(http.Controller):
             # 2. Fire "Started Checkout" event directly via Klaviyo Events API
             #    We send directly (not via event queue) because the queue uses order.partner_id
             #    which is the public user for guests — the wrong email.
+            #    Note: sale_get_order() is not available in JSONRPC routes, so we
+            #    get the cart order ID from the session directly.
             try:
-                order = request.website.sale_get_order()
+                sale_order_id = request.session.get('sale_order_id')
+                order = request.env['sale.order'].sudo().browse(sale_order_id) if sale_order_id else None
                 if order and order.order_line:
                     ev_success, ev_detail = request.env['res.partner'].sudo()._klaviyo_send_started_checkout(
                         email=email,
