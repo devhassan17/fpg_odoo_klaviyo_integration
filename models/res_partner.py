@@ -225,6 +225,118 @@ class ResPartner(models.Model):
             _logger.exception("Klaviyo Subscribe Email EXCEPTION for %s", email)
             return False, str(e)
 
+    @api.model
+    def _klaviyo_send_started_checkout(self, email, order, profile_data=None):
+        """Send a 'Started Checkout' event directly to Klaviyo Events API.
+
+        This bypasses the event queue because at email-capture time the order's
+        partner is still the public user, so the queue would use the wrong email.
+        Here we explicitly set the profile email to the captured checkout email.
+
+        :param str email: The checkout visitor's email address.
+        :param recordset order: The ``sale.order`` (cart) record.
+        :param dict profile_data: Optional profile attributes (first_name, etc).
+        :returns: Tuple ``(success: bool, detail: str)``
+        """
+        if not email or not order or not order.order_line:
+            return False, 'Missing email or empty cart'
+
+        # Check company filter
+        if not self.env['res.config.settings'].check_klaviyo_company(order.company_id):
+            return False, 'Company filter mismatch'
+
+        # Get API key
+        is_test, api_key = self.env['res.config.settings'].get_klaviyo_api_key()
+        if not api_key:
+            return False, 'API key missing'
+
+        # Build profile attributes with the captured email
+        profile_attrs = {'email': email}
+        if profile_data:
+            for key in ('first_name', 'last_name', 'phone_number'):
+                if profile_data.get(key):
+                    profile_attrs[key] = profile_data[key]
+
+        # Build cart items
+        item_names = []
+        categories = set()
+        items_list = []
+        for line in order.order_line:
+            if line.product_id:
+                item_names.append(line.product_id.name)
+                cats = line.product_id.public_categ_ids.mapped('name') or [line.product_id.categ_id.name]
+                for c in cats:
+                    if c:
+                        categories.add(c)
+                items_list.append({
+                    'ProductID': line.product_id.id,
+                    'SKU': line.product_id.default_code or '',
+                    'ProductName': line.product_id.name,
+                    'Quantity': line.product_uom_qty,
+                    'ItemPrice': line.price_unit,
+                    'RowTotal': line.price_subtotal,
+                })
+
+        time_str = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+
+        payload = {
+            'data': {
+                'type': 'event',
+                'attributes': {
+                    'properties': {
+                        'OrderId': order.name,
+                        'Items': items_list,
+                        'ItemNames': item_names,
+                        'Categories': list(categories),
+                    },
+                    'time': time_str,
+                    'value': order.amount_total,
+                    'value_currency': order.currency_id.name,
+                    'unique_id': f'checkout_{order.id}',
+                    'metric': {
+                        'data': {
+                            'type': 'metric',
+                            'attributes': {
+                                'name': 'Started Checkout'
+                            }
+                        }
+                    },
+                    'profile': {
+                        'data': {
+                            'type': 'profile',
+                            'attributes': profile_attrs
+                        }
+                    }
+                }
+            }
+        }
+
+        headers = KLAVIYO_HEADERS.copy()
+        headers['Authorization'] = headers['Authorization'] % api_key
+
+        _logger.info("Klaviyo Started Checkout: Sending for %s, order %s (value: %s %s)",
+                      email, order.name, order.amount_total, order.currency_id.name)
+
+        try:
+            response = requests.post(
+                url='https://a.klaviyo.com/api/events',
+                json=payload,
+                headers=headers,
+                timeout=10,
+            )
+            if response.status_code == 202:
+                _logger.info("Klaviyo Started Checkout SUCCESS for %s, order %s", email, order.name)
+                return True, 'event_sent'
+            else:
+                _logger.error(
+                    "Klaviyo Started Checkout FAILED for %s. Code: %s, Response: %s",
+                    email, response.status_code, response.text[:500] if response.text else '(empty)',
+                )
+                return False, f'API error {response.status_code}'
+        except Exception as e:
+            _logger.exception("Klaviyo Started Checkout EXCEPTION for %s", email)
+            return False, str(e)
+
     def write(self, vals):
         res = super(ResPartner, self).write(vals)
         # Trigger subscription or unsubscription if opt-in field is explicitly modified
